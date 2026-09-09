@@ -1,0 +1,25 @@
+{
+  "name": "dailystar",
+  "version": "0.0.1",
+  "private": true,
+  "description": "DailyStar — modern digital news portal monorepo",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --filter \"./apps/*\" build",
+    "lint": "pnpm --recursive --parallel lint",
+    "typecheck": "pnpm --recursive --parallel typecheck",
+    "test": "pnpm --recursive test",
+    "test:ci": "pnpm --recursive --parallel test:ci",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,cjs,json,md,yaml,yml}\" --ignore-path .gitignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,cjs,json,md,yaml,yml}\" --ignore-path .gitignore"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

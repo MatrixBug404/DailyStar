@@ -1,0 +1,105 @@
+# =============================================================================
+# DailyStar — Local Development Infrastructure
+# =============================================================================
+# Provides: PostgreSQL 16, Redis 7, MinIO (S3-compatible object storage)
+#
+# Usage:
+#   docker compose -f infrastructure/docker/docker-compose.local.yml up -d
+#   docker compose -f infrastructure/docker/docker-compose.local.yml down
+#   docker compose -f infrastructure/docker/docker-compose.local.yml down -v  # remove volumes
+# =============================================================================
+
+services:
+  # ─── PostgreSQL 16 ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: dailystar_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dailystar_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-dailystar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_local}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dailystar} -d ${POSTGRES_DB:-dailystar_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - dailystar_local
+
+  # ─── Redis 7 ────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: dailystar_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - dailystar_local
+
+  # ─── MinIO (S3-compatible object storage) ───────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: dailystar_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changeme_local}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"       # S3 API
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"  # Web console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    networks:
+      - dailystar_local
+
+  # ─── MinIO bucket initializer (runs once, then exits) ───────────────────────
+  minio_init:
+    image: minio/mc:latest
+    container_name: dailystar_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-changeme_local};
+        mc mb --ignore-existing local/${MINIO_BUCKET_MEDIA:-dailystar-media};
+        mc anonymous set download local/${MINIO_BUCKET_MEDIA:-dailystar-media};
+        echo 'MinIO bucket initialised.';
+      "
+    networks:
+      - dailystar_local
+    restart: no
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  dailystar_local:
+    driver: bridge

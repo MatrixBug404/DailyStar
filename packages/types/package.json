@@ -1,0 +1,14 @@
+{
+  "name": "@dailystar/types",
+  "version": "0.0.1",
+  "description": "Shared TypeScript types and interfaces for DailyStar (frontend ↔ backend contract)",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

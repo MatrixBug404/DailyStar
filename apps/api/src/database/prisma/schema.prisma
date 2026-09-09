@@ -1,0 +1,257 @@
+// =============================================================================
+// DailyStar — Prisma Schema
+// =============================================================================
+// Phase 0: Empty schema — datasource and generator only.
+//           No models yet. Models are added phase by phase per Section 13
+//           of the architecture specification.
+//
+// Phase 1: User, Role, Permission, RolePermission, UserRole
+// Phase 2: Article, ArticleRevision, AuthorProfile, Category, Tag, ArticleTag
+// Phase 3: AuditLog (+ Article.current_status, Article.current_published_revision_id)
+// Phase 4: Media
+// Phase 9: Source, NewsItem, NewsIngestion, AIAnalysis
+// Phase 10: PublicationSchedule
+//
+// Database changelog is managed entirely via Prisma migrations.
+// NEVER edit migration history manually (architecture spec, Section 15, rule 6).
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Phase 1: Identity & RBAC Models ─────────────────────────────────────────
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  passwordHash    String
+  displayName     String?
+  isActive        Boolean          @default(true)
+  tokenVersion    Int              @default(1)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  roles           UserRole[]
+  refreshSessions RefreshSession[]
+  articlesAuthored Article[]         @relation("ArticlePrimaryAuthor")
+  articlesCreated  Article[]         @relation("ArticleCreator")
+  articlesUpdated  Article[]         @relation("ArticleUpdater")
+  articlesReviewed Article[]         @relation("ArticleReviewer")
+  revisions        ArticleRevision[] @relation("ArticleRevisionAuthor")
+  authorProfile    AuthorProfile?
+  auditLogs        AuditLog[]        @relation("AuditLogActor")
+
+  @@map("users")
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique // e.g. 'author', 'editor', 'admin'
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique // e.g. 'article:create', 'user:manage'
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    // Argon2 hash of the opaque token
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime? // Instead of deleting, mark as revoked
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_sessions")
+}
+
+// ─── Phase 2: Articles Core Models ───────────────────────────────────────────
+
+enum ArticleStatus {
+  DRAFT
+  SUBMITTED_FOR_REVIEW
+  UNDER_REVIEW
+  APPROVED
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+  FAILED_TO_PUBLISH
+}
+
+model Article {
+  id                String            @id @default(uuid())
+  slug              String            @unique
+  status            ArticleStatus     @default(DRAFT)
+  primaryAuthorId   String
+  categoryId                 String?
+  currentRevisionId          String?
+  currentPublishedRevisionId String?
+  approvedRevisionId         String?
+  reviewerId                 String?
+  publishedAt                DateTime?
+  scheduledFor               DateTime?
+  version                    Int               @default(1)
+  createdAt                  DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+  createdBy         String
+  updatedBy         String?
+
+  primaryAuthor              User              @relation("ArticlePrimaryAuthor", fields: [primaryAuthorId], references: [id])
+  creator                    User              @relation("ArticleCreator", fields: [createdBy], references: [id])
+  updater                    User?             @relation("ArticleUpdater", fields: [updatedBy], references: [id])
+  reviewer                   User?             @relation("ArticleReviewer", fields: [reviewerId], references: [id])
+  category                   Category?         @relation(fields: [categoryId], references: [id])
+  currentRevision            ArticleRevision?  @relation("ArticleCurrentRevision", fields: [currentRevisionId], references: [id])
+  currentPublishedRevision   ArticleRevision?  @relation("ArticleCurrentPublishedRevision", fields: [currentPublishedRevisionId], references: [id])
+  approvedRevision           ArticleRevision?  @relation("ArticleApprovedRevision", fields: [approvedRevisionId], references: [id])
+  
+  revisions         ArticleRevision[] @relation("ArticleRevisions")
+  tags              ArticleTag[]
+
+  @@index([primaryAuthorId])
+  @@index([categoryId])
+  @@index([status])
+  
+  @@map("articles")
+}
+
+model ArticleRevision {
+  id              String   @id @default(uuid())
+  articleId       String
+  authorId        String
+  revisionNumber  Int
+  title           String
+  body            String   @db.Text
+  excerpt         String?
+  createdAt       DateTime @default(now())
+
+  article         Article  @relation("ArticleRevisions", fields: [articleId], references: [id], onDelete: Cascade)
+  author          User     @relation("ArticleRevisionAuthor", fields: [authorId], references: [id])
+  
+  currentForArticles          Article[] @relation("ArticleCurrentRevision")
+  currentPublishedForArticles Article[] @relation("ArticleCurrentPublishedRevision")
+  approvedForArticles         Article[] @relation("ArticleApprovedRevision")
+
+  @@unique([articleId, revisionNumber])
+  @@index([articleId])
+  
+  @@map("article_revisions")
+}
+
+model AuthorProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  displayName String
+  bio         String?  @db.Text
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("author_profiles")
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String
+  slug      String     @unique
+  parentId  String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryHierarchy")
+  articles  Article[]
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Tag {
+  id   String @id @default(uuid())
+  name String
+  slug String @unique
+
+  articles ArticleTag[]
+
+  @@map("tags")
+}
+
+model ArticleTag {
+  articleId String
+  tagId     String
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@map("article_tags")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  entityType  String
+  entityId    String
+  action      String
+  actorId     String?
+  beforeState Json?
+  afterState  Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  actor       User?    @relation("AuditLogActor", fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([action])
+  
+  @@map("audit_logs")
+}
