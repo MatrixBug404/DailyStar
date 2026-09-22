@@ -11,7 +11,7 @@ describe('ArticlesController', () => {
       controllers: [ArticlesController],
       providers: [
         { provide: ArticlesService, useValue: {} },
-        { provide: JwtService, useValue: {} }
+        { provide: JwtService, useValue: {} },
       ],
     }).compile();
 

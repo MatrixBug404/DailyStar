@@ -47,6 +47,7 @@ model User {
   revisions        ArticleRevision[] @relation("ArticleRevisionAuthor")
   authorProfile    AuthorProfile?
   auditLogs        AuditLog[]        @relation("AuditLogActor")
+  uploadedMedia    Media[]           @relation("MediaUploadedBy")
 
   @@map("users")
 }
@@ -111,6 +112,19 @@ model RefreshSession {
   @@map("refresh_sessions")
 }
 
+// ─── Phase 4: Media Models ─────────────────────────────────────────────────
+
+enum MediaType {
+  IMAGE
+}
+
+enum MediaStatus {
+  UPLOADING
+  READY
+  FAILED
+  DELETED
+}
+
 // ─── Phase 2: Articles Core Models ───────────────────────────────────────────
 
 enum ArticleStatus {
@@ -155,9 +169,13 @@ model Article {
   revisions         ArticleRevision[] @relation("ArticleRevisions")
   tags              ArticleTag[]
 
+  coverMediaId      String?
+  coverMedia        Media?    @relation("ArticleCoverMedia", fields: [coverMediaId], references: [id], onDelete: NoAction)
+
   @@index([primaryAuthorId])
   @@index([categoryId])
   @@index([status])
+  @@index([coverMediaId])
   
   @@map("articles")
 }
@@ -254,4 +272,31 @@ model AuditLog {
   @@index([action])
   
   @@map("audit_logs")
+}
+
+model Media {
+  id               String      @id @default(uuid())
+  objectKey        String      @unique
+  bucket           String
+  originalFilename String      @db.VarChar(255)
+  mimeType         String      @db.VarChar(100)
+  mediaType        MediaType   @default(IMAGE)
+  fileSizeBytes    BigInt
+  sha256Checksum   String      @db.Char(64)
+  width            Int?
+  height           Int?
+  status           MediaStatus @default(UPLOADING)
+  storageProvider  String      @default("minio") @db.VarChar(50)
+  uploadedById     String
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  deletedAt        DateTime?
+
+  uploadedBy    User      @relation("MediaUploadedBy", fields: [uploadedById], references: [id])
+  articleCovers Article[] @relation("ArticleCoverMedia")
+
+  @@index([uploadedById])
+  @@index([status])
+  @@index([sha256Checksum])
+  @@map("media")
 }

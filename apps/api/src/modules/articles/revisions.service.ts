@@ -9,16 +9,16 @@ export class RevisionsService {
     title: string,
     body: string,
     excerpt: string | null,
-    prismaClient: any // Accept transactional prisma client
+    prismaClient: any, // Accept transactional prisma client
   ) {
     // Get latest revision number
     const lastRev = await prismaClient.articleRevision.findFirst({
       where: { articleId },
       orderBy: { revisionNumber: 'desc' },
     });
-    
+
     const revisionNumber = lastRev ? lastRev.revisionNumber + 1 : 1;
-    
+
     return prismaClient.articleRevision.create({
       data: {
         articleId,

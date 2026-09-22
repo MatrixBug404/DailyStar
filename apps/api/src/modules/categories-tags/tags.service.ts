@@ -8,11 +8,11 @@ export class TagsService {
   async findOrCreate(names: string[]) {
     const uniqueNames = Array.from(new Set(names));
     const tags = [];
-    
+
     for (const name of uniqueNames) {
       const slug = generateSlug(name);
       if (!slug) continue;
-      
+
       let tag = await prisma.tag.findUnique({ where: { slug } });
       if (!tag) {
         try {
@@ -23,7 +23,7 @@ export class TagsService {
       }
       if (tag) tags.push(tag);
     }
-    
+
     return tags;
   }
 
@@ -46,7 +46,7 @@ export class TagsService {
   async remove(id: string) {
     const tag = await prisma.tag.findUnique({ where: { id } });
     if (!tag) throw new NotFoundException();
-    
+
     await prisma.tag.delete({ where: { id } });
   }
 }

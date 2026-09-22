@@ -19,7 +19,7 @@ describe('AuditService', () => {
 
   it('should expose only log()', () => {
     const methods = Object.getOwnPropertyNames(AuditService.prototype).filter(
-      (name) => name !== 'constructor'
+      (name) => name !== 'constructor',
     );
     expect(methods).toEqual(['log']);
   });
@@ -35,8 +35,8 @@ describe('AuditService', () => {
   it('should successfully log via a transaction client without leaking sensitive data', async () => {
     const mockTx = {
       auditLog: {
-        create: jest.fn().mockResolvedValue({ id: 'audit-123' })
-      }
+        create: jest.fn().mockResolvedValue({ id: 'audit-123' }),
+      },
     };
 
     const params = {
@@ -46,7 +46,7 @@ describe('AuditService', () => {
       actorId: 'usr-1',
       beforeState: { status: 'UNDER_REVIEW' },
       afterState: { status: 'APPROVED' },
-      metadata: { reason: 'Looks good' }
+      metadata: { reason: 'Looks good' },
     };
 
     await service.log(params, mockTx);
@@ -59,8 +59,8 @@ describe('AuditService', () => {
         actorId: 'usr-1',
         beforeState: { status: 'UNDER_REVIEW' },
         afterState: { status: 'APPROVED' },
-        metadata: { reason: 'Looks good' }
-      }
+        metadata: { reason: 'Looks good' },
+      },
     });
   });
 });

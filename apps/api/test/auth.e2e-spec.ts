@@ -22,7 +22,7 @@ describe('AuthController (e2e)', () => {
 
     // Clear users before tests (only test users, keep seed users)
     await prisma.user.deleteMany({
-      where: { email: { in: ['test@example.com', 'hacker@example.com'] } }
+      where: { email: { in: ['test@example.com', 'hacker@example.com'] } },
     });
   });
 

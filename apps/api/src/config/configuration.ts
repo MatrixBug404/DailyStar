@@ -39,6 +39,12 @@ export default () => ({
     bucket: process.env.S3_BUCKET ?? 'dailystar-media',
   },
 
+  /** Media handling */
+  media: {
+    maxFileSizeBytes: parseInt(process.env.MEDIA_MAX_FILE_SIZE_BYTES ?? '10485760', 10),
+    signedUrlExpirySeconds: parseInt(process.env.MEDIA_SIGNED_URL_EXPIRY_SECONDS ?? '3600', 10),
+  },
+
   /** JWT configuration — active from Phase 1 */
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET ?? '',

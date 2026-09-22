@@ -85,7 +85,7 @@ services:
       /bin/sh -c "
         mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-changeme_local};
         mc mb --ignore-existing local/${MINIO_BUCKET_MEDIA:-dailystar-media};
-        mc anonymous set download local/${MINIO_BUCKET_MEDIA:-dailystar-media};
+        mc anonymous set none local/${MINIO_BUCKET_MEDIA:-dailystar-media};
         echo 'MinIO bucket initialised.';
       "
     networks:

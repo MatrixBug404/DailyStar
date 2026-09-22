@@ -31,34 +31,84 @@ describe('Workflow & Concurrency E2E (Phase 3)', () => {
     await prisma.auditLog.deleteMany();
     await prisma.articleRevision.deleteMany();
     await prisma.article.deleteMany();
-    
+
     // Clear user roles and users
     await prisma.userRole.deleteMany({
-      where: { user: { email: { in: ['author_e2e@dailystar.local', 'editor_e2e@dailystar.local', 'admin_e2e@dailystar.local', 'temp4@dailystar.local'] } } }
+      where: {
+        user: {
+          email: {
+            in: [
+              'author_e2e@dailystar.local',
+              'editor_e2e@dailystar.local',
+              'admin_e2e@dailystar.local',
+              'temp4@dailystar.local',
+            ],
+          },
+        },
+      },
     });
     await prisma.user.deleteMany({
-      where: { email: { in: ['author_e2e@dailystar.local', 'editor_e2e@dailystar.local', 'admin_e2e@dailystar.local', 'temp4@dailystar.local'] } }
+      where: {
+        email: {
+          in: [
+            'author_e2e@dailystar.local',
+            'editor_e2e@dailystar.local',
+            'admin_e2e@dailystar.local',
+            'temp4@dailystar.local',
+          ],
+        },
+      },
     });
 
-    await request(app.getHttpServer()).post('/auth/register').send({ email: 'author_e2e@dailystar.local', password: 'password123', displayName: 'Author' });
-    
-    await request(app.getHttpServer()).post('/auth/register').send({ email: 'editor_e2e@dailystar.local', password: 'password123', displayName: 'Editor' });
-    const editorUser = await prisma.user.findUnique({ where: { email: 'editor_e2e@dailystar.local' }});
-    await prisma.userRole.deleteMany({ where: { userId: editorUser!.id }});
-    await prisma.userRole.create({ data: { userId: editorUser!.id, roleId: (await prisma.role.findUnique({where:{name:'editor'}}))!.id } });
+    await request(app.getHttpServer()).post('/auth/register').send({
+      email: 'author_e2e@dailystar.local',
+      password: 'password123',
+      displayName: 'Author',
+    });
 
-    await request(app.getHttpServer()).post('/auth/register').send({ email: 'admin_e2e@dailystar.local', password: 'password123', displayName: 'Admin' });
-    const adminUser = await prisma.user.findUnique({ where: { email: 'admin_e2e@dailystar.local' }});
-    await prisma.userRole.deleteMany({ where: { userId: adminUser!.id }});
-    await prisma.userRole.create({ data: { userId: adminUser!.id, roleId: (await prisma.role.findUnique({where:{name:'admin'}}))!.id } });
+    await request(app.getHttpServer()).post('/auth/register').send({
+      email: 'editor_e2e@dailystar.local',
+      password: 'password123',
+      displayName: 'Editor',
+    });
+    const editorUser = await prisma.user.findUnique({
+      where: { email: 'editor_e2e@dailystar.local' },
+    });
+    await prisma.userRole.deleteMany({ where: { userId: editorUser!.id } });
+    await prisma.userRole.create({
+      data: {
+        userId: editorUser!.id,
+        roleId: (await prisma.role.findUnique({ where: { name: 'editor' } }))!.id,
+      },
+    });
 
-    const authorLogin = await request(app.getHttpServer()).post('/auth/login').send({ email: 'author_e2e@dailystar.local', password: 'password123' });
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ email: 'admin_e2e@dailystar.local', password: 'password123', displayName: 'Admin' });
+    const adminUser = await prisma.user.findUnique({
+      where: { email: 'admin_e2e@dailystar.local' },
+    });
+    await prisma.userRole.deleteMany({ where: { userId: adminUser!.id } });
+    await prisma.userRole.create({
+      data: {
+        userId: adminUser!.id,
+        roleId: (await prisma.role.findUnique({ where: { name: 'admin' } }))!.id,
+      },
+    });
+
+    const authorLogin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'author_e2e@dailystar.local', password: 'password123' });
     authorSession = authorLogin.body.accessToken;
 
-    const editorLogin = await request(app.getHttpServer()).post('/auth/login').send({ email: 'editor_e2e@dailystar.local', password: 'password123' });
+    const editorLogin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'editor_e2e@dailystar.local', password: 'password123' });
     editorSession = editorLogin.body.accessToken;
 
-    const adminLogin = await request(app.getHttpServer()).post('/auth/login').send({ email: 'admin_e2e@dailystar.local', password: 'password123' });
+    const adminLogin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'admin_e2e@dailystar.local', password: 'password123' });
     adminSession = adminLogin.body.accessToken;
   });
 
@@ -76,7 +126,7 @@ describe('Workflow & Concurrency E2E (Phase 3)', () => {
       .send({
         title: 'Workflow Test Article',
         body: 'Initial content',
-        tags: ['test']
+        tags: ['test'],
       });
 
     expect(res.status).toBe(201);
@@ -101,7 +151,7 @@ describe('Workflow & Concurrency E2E (Phase 3)', () => {
       .post(`/v1/articles/${articleId}/start-review`)
       .set('Authorization', `Bearer ${authorSession}`)
       .send({ expectedVersion: currentVersion });
-    
+
     expect(res.status).toBe(403);
   });
 
@@ -202,7 +252,7 @@ describe('Workflow & Concurrency E2E (Phase 3)', () => {
       .patch(`/v1/articles/${articleId}`)
       .set('Authorization', `Bearer ${authorSession}`)
       .send({ body: 'Changing after approval', expectedVersion: currentVersion });
-    
+
     expect(patchRes.status).toBe(200);
     expect(patchRes.body.status).toBe('DRAFT');
     expect(patchRes.body.approvedRevisionId).toBeNull();
@@ -288,7 +338,7 @@ describe('Workflow & Concurrency E2E (Phase 3)', () => {
       .post(`/v1/articles/${articleId}/archive`)
       .set('Authorization', `Bearer ${editorSession}`)
       .send({ expectedVersion: currentVersion });
-    
+
     expect(res.status).toBe(404);
   });
 
@@ -316,11 +366,11 @@ describe('Workflow & Concurrency E2E (Phase 3)', () => {
       .set('Authorization', `Bearer ${editorSession}`);
     expect(resEd.status).toBe(200);
     expect(Array.isArray(resEd.body)).toBe(true);
-    
+
     // Check auto-revert audit
     const revertAudit = resEd.body.find((a: any) => a.action === 'ARTICLE_RESET_TO_DRAFT');
     expect(revertAudit).toBeDefined();
-    
+
     // Ensure no sensitive data in metadata or before/after state
     const strBody = JSON.stringify(resEd.body);
     expect(strBody).not.toContain('passwordHash');

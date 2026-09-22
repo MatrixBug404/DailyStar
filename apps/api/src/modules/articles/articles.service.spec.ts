@@ -4,6 +4,7 @@ import { RevisionsService } from './revisions.service';
 import { AuthorProfilesService } from './author-profiles.service';
 import { TagsService } from '../categories-tags/tags.service';
 import { WorkflowService } from '../workflow/workflow.service';
+import { MediaService } from '../media/media.service';
 
 describe('ArticlesService', () => {
   let service: ArticlesService;
@@ -16,6 +17,7 @@ describe('ArticlesService', () => {
         { provide: AuthorProfilesService, useValue: {} },
         { provide: TagsService, useValue: {} },
         { provide: WorkflowService, useValue: {} },
+        { provide: MediaService, useValue: {} },
       ],
     }).compile();
 

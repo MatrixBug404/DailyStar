@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { prisma } from '../../database/client';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -6,10 +11,11 @@ import { generateSlug } from '../articles/slug.util';
 
 @Injectable()
 export class CategoriesService {
-
   async create(createCategoryDto: CreateCategoryDto) {
-    let slug = createCategoryDto.slug ? generateSlug(createCategoryDto.slug) : generateSlug(createCategoryDto.name);
-    
+    const slug = createCategoryDto.slug
+      ? generateSlug(createCategoryDto.slug)
+      : generateSlug(createCategoryDto.name);
+
     // Check global uniqueness
     const existing = await prisma.category.findUnique({ where: { slug } });
     if (existing) {
@@ -32,14 +38,14 @@ export class CategoriesService {
 
   async findAll() {
     return prisma.category.findMany({
-      include: { children: true }
+      include: { children: true },
     });
   }
 
   async findOne(id: string) {
     const category = await prisma.category.findUnique({
       where: { id },
-      include: { children: true, parent: true }
+      include: { children: true, parent: true },
     });
     if (!category) throw new NotFoundException();
     return category;
@@ -51,14 +57,19 @@ export class CategoriesService {
 
     let slug = category.slug;
     if (updateCategoryDto.slug || updateCategoryDto.name) {
-      slug = updateCategoryDto.slug ? generateSlug(updateCategoryDto.slug) : generateSlug(updateCategoryDto.name || category.name);
+      slug = updateCategoryDto.slug
+        ? generateSlug(updateCategoryDto.slug)
+        : generateSlug(updateCategoryDto.name || category.name);
       if (slug !== category.slug) {
         const existing = await prisma.category.findUnique({ where: { slug } });
         if (existing) throw new ConflictException('CATEGORY_SLUG_CONFLICT');
       }
     }
 
-    if (updateCategoryDto.parentId !== undefined && updateCategoryDto.parentId !== category.parentId) {
+    if (
+      updateCategoryDto.parentId !== undefined &&
+      updateCategoryDto.parentId !== category.parentId
+    ) {
       if (updateCategoryDto.parentId === id) throw new BadRequestException('Cannot parent to self');
       if (updateCategoryDto.parentId) {
         await this.verifyDepthLimit(updateCategoryDto.parentId, id);
@@ -80,9 +91,9 @@ export class CategoriesService {
       where: { id },
       include: {
         _count: {
-          select: { children: true, articles: true }
-        }
-      }
+          select: { children: true, articles: true },
+        },
+      },
     });
 
     if (!category) throw new NotFoundException();
@@ -97,15 +108,15 @@ export class CategoriesService {
   private async verifyDepthLimit(parentId: string, movingCategoryId?: string) {
     let currentId = parentId;
     let depth = 1;
-    
+
     while (currentId) {
       if (currentId === movingCategoryId) {
         throw new BadRequestException('Circular category dependency');
       }
-      
+
       const cat = await prisma.category.findUnique({ where: { id: currentId } });
       if (!cat) throw new BadRequestException('INVALID_REFERENCE');
-      
+
       depth++;
       if (depth > 3) {
         throw new BadRequestException('Category hierarchy depth limit (3) exceeded');
@@ -114,4 +125,3 @@ export class CategoriesService {
     }
   }
 }
-

@@ -26,17 +26,26 @@ describe('Categories and Tags (e2e)', () => {
     await app.init();
 
     await prisma.user.deleteMany({
-      where: { email: 'admin_e2e@dailystar.local' }
-    });
-    
-    await prisma.category.deleteMany({
-      where: { name: { startsWith: 'Cat ' } }
+      where: { email: 'admin_e2e@dailystar.local' },
     });
 
-    await request(app.getHttpServer()).post('/auth/register').send({ email: 'admin_e2e@dailystar.local', password: 'password123', displayName: 'Admin' });
-    const adminUser = await prisma.user.findUnique({ where: { email: 'admin_e2e@dailystar.local' }});
-    await prisma.userRole.deleteMany({ where: { userId: adminUser!.id }});
-    await prisma.userRole.create({ data: { userId: adminUser!.id, roleId: (await prisma.role.findUnique({where:{name:'admin'}}))!.id } });
+    await prisma.category.deleteMany({
+      where: { name: { startsWith: 'Cat ' } },
+    });
+
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ email: 'admin_e2e@dailystar.local', password: 'password123', displayName: 'Admin' });
+    const adminUser = await prisma.user.findUnique({
+      where: { email: 'admin_e2e@dailystar.local' },
+    });
+    await prisma.userRole.deleteMany({ where: { userId: adminUser!.id } });
+    await prisma.userRole.create({
+      data: {
+        userId: adminUser!.id,
+        roleId: (await prisma.role.findUnique({ where: { name: 'admin' } }))!.id,
+      },
+    });
 
     const adminLogin = await request(app.getHttpServer())
       .post('/auth/login')
@@ -76,7 +85,7 @@ describe('Categories and Tags (e2e)', () => {
       .post('/v1/categories')
       .set('Authorization', `Bearer ${adminSession}`)
       .send({ name: 'Cat 4', parentId: cat3Id });
-    expect(cat4.status).toBe(400); 
+    expect(cat4.status).toBe(400);
   });
 
   it('/v1/categories/:id (DELETE) - Block deletion if in use', async () => {

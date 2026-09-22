@@ -23,7 +23,7 @@ export class UpdateArticleDto {
   @IsString({ each: true })
   @IsOptional()
   tags?: string[];
-  
+
   @IsNumber()
   @IsOptional()
   @Min(1)

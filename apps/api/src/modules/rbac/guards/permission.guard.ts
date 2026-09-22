@@ -1,4 +1,10 @@
-import { Injectable, ForbiddenException, UnauthorizedException, CanActivate, ExecutionContext } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  UnauthorizedException,
+  CanActivate,
+  ExecutionContext,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { prisma } from '../../../database/client';
 import { PERMISSIONS_KEY } from '../decorators/require-permission.decorator';

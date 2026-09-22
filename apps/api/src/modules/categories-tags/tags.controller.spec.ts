@@ -11,7 +11,7 @@ describe('TagsController', () => {
       controllers: [TagsController],
       providers: [
         { provide: TagsService, useValue: {} },
-        { provide: JwtService, useValue: {} }
+        { provide: JwtService, useValue: {} },
       ],
     }).compile();
 

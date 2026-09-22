@@ -28,13 +28,23 @@ export class WorkflowController {
   @Post(':id/request-changes')
   @RequirePermission('article.request-changes')
   requestChanges(@Param('id') id: string, @Req() req: any, @Body() body: any) {
-    return this.workflowService.requestChanges(id, this.getUserContext(req), body.expectedVersion, body.comment);
+    return this.workflowService.requestChanges(
+      id,
+      this.getUserContext(req),
+      body.expectedVersion,
+      body.comment,
+    );
   }
 
   @Post(':id/reject')
   @RequirePermission('article.reject')
   reject(@Param('id') id: string, @Req() req: any, @Body() body: any) {
-    return this.workflowService.reject(id, this.getUserContext(req), body.expectedVersion, body.comment);
+    return this.workflowService.reject(
+      id,
+      this.getUserContext(req),
+      body.expectedVersion,
+      body.comment,
+    );
   }
 
   @Post(':id/approve')
@@ -52,7 +62,12 @@ export class WorkflowController {
   @Post(':id/schedule')
   @RequirePermission('article.schedule')
   schedule(@Param('id') id: string, @Req() req: any, @Body() body: any) {
-    return this.workflowService.schedule(id, this.getUserContext(req), body.expectedVersion, body.scheduledFor);
+    return this.workflowService.schedule(
+      id,
+      this.getUserContext(req),
+      body.expectedVersion,
+      body.scheduledFor,
+    );
   }
 
   @Post(':id/cancel-schedule')

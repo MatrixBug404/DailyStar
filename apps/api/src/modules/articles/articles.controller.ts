@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } fro
 import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
+import { SetCoverMediaDto } from '../media/dto/set-cover-media.dto';
 import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionGuard } from '../rbac/guards/permission.guard';
@@ -54,5 +55,15 @@ export class ArticlesController {
   @Post(':id/restore')
   restore(@Param('id') id: string, @Req() req: any) {
     return this.articlesService.restore(id, this.getUserContext(req));
+  }
+
+  @Patch(':id/cover')
+  async setCoverMedia(@Param('id') id: string, @Body() dto: SetCoverMediaDto, @Req() req: any) {
+    return this.articlesService.setCoverMedia(id, dto, this.getUserContext(req));
+  }
+
+  @Get(':id/cover')
+  async getArticleCover(@Param('id') id: string, @Req() req: any) {
+    return this.articlesService.getArticleCover(id, this.getUserContext(req));
   }
 }
