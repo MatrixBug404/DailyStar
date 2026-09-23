@@ -53,7 +53,7 @@ services:
 
   # ─── MinIO (S3-compatible object storage) ───────────────────────────────────
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: dailystar_minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -76,7 +76,7 @@ services:
 
   # ─── MinIO bucket initializer (runs once, then exits) ───────────────────────
   minio_init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     container_name: dailystar_minio_init
     depends_on:
       minio:
