@@ -29,6 +29,6 @@ import { STORAGE_SERVICE } from './storage/storage.service.interface';
       useClass: MinioStorageService,
     },
   ],
-  exports: [MediaService],
+  exports: [MediaService, STORAGE_SERVICE],
 })
 export class MediaModule {}

@@ -30,6 +30,14 @@ describe('PublicService', () => {
           provide: PostgresFtsProvider,
           useValue: { search: jest.fn() },
         },
+        {
+          provide: 'STORAGE_SERVICE',
+          useValue: { generateSignedPublicDownloadUrl: jest.fn() },
+        },
+        {
+          provide: require('@nestjs/config').ConfigService,
+          useValue: { get: jest.fn().mockReturnValue(3600) },
+        },
       ],
     }).compile();
 
@@ -151,6 +159,37 @@ describe('PublicService', () => {
       (ftsProvider.search as jest.Mock).mockResolvedValue({ data: [], total: 0 });
       await service.search({ q: 'test', page: 1, limit: 10 });
       expect(ftsProvider.search).toHaveBeenCalled();
+    });
+  });
+
+  describe('getArticleCover', () => {
+    it('PU-07: Should return signed URL if published and READY', async () => {
+      (prisma.article.findFirst as jest.Mock).mockResolvedValue({
+        id: '1',
+        slug: 'test',
+        coverMediaId: 'media1',
+        coverMedia: { status: 'READY', objectKey: 'key', mimeType: 'image/jpeg', width: 100, height: 100 },
+      });
+      const storageMock = service['storageService'];
+      (storageMock.generateSignedPublicDownloadUrl as jest.Mock).mockResolvedValue({
+        signedUrl: 'http://signed',
+        expiresAt: '2030',
+      });
+
+      const result = await service.getArticleCover('test');
+      expect(result.signedUrl).toBe('http://signed');
+      expect(result.expiresAt).toBe('2030');
+      expect(result.mimeType).toBe('image/jpeg');
+    });
+
+    it('PU-08: Should throw NotFoundException if not READY or not published', async () => {
+      (prisma.article.findFirst as jest.Mock).mockResolvedValue({
+        id: '1',
+        slug: 'test',
+        coverMediaId: 'media1',
+        coverMedia: { status: 'FAILED' },
+      });
+      await expect(service.getArticleCover('test')).rejects.toThrow(NotFoundException);
     });
   });
 });

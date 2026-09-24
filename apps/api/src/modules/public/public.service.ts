@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { prisma } from '../../database/client';
 import { Prisma } from '../../database/generated/prisma';
 import { PostgresFtsProvider } from '../search/providers/postgres-fts.provider';
@@ -8,10 +9,17 @@ import { PublicArticleSummaryDto } from './dto/public-article-summary.dto';
 import { PublicArticleFullDto } from './dto/public-article-full.dto';
 import { PublicCategoryDto } from './dto/public-category.dto';
 import { SearchQueryDto } from '../search/dto/search-query.dto';
+import { CoverResponseDto } from './dto/cover-response.dto';
+import { STORAGE_SERVICE } from '../media/storage/storage.service.interface';
+import { MinioStorageService } from '../media/storage/minio-storage.service';
 
 @Injectable()
 export class PublicService {
-  constructor(private readonly postgresFtsProvider: PostgresFtsProvider) {}
+  constructor(
+    private readonly postgresFtsProvider: PostgresFtsProvider,
+    @Inject(STORAGE_SERVICE) private readonly storageService: MinioStorageService,
+    private readonly configService: ConfigService,
+  ) {}
 
   private readonly tripleGate = {
     status: 'PUBLISHED' as const,
@@ -290,6 +298,38 @@ export class PublicService {
         avatarUrl: article.primaryAuthor.avatarUrl,
       },
       tags: article.tags.map((at: any) => at.tag.name),
+    };
+  }
+
+  async getArticleCover(slug: string): Promise<CoverResponseDto> {
+    const article = await prisma.article.findFirst({
+      where: {
+        slug,
+        ...this.tripleGate,
+      },
+      include: {
+        coverMedia: true,
+      },
+    });
+
+    if (!article || !article.coverMediaId || article.coverMedia?.status !== 'READY') {
+      throw new NotFoundException();
+    }
+
+    const expiresInSeconds = this.configService.get<number>('media.signedUrlExpirySeconds') ?? 3600;
+
+    const { signedUrl, expiresAt } = await this.storageService.generateSignedPublicDownloadUrl(
+      article.coverMedia.objectKey,
+      article.coverMedia.mimeType,
+      expiresInSeconds,
+    );
+
+    return {
+      signedUrl,
+      expiresAt,
+      mimeType: article.coverMedia.mimeType,
+      width: article.coverMedia.width,
+      height: article.coverMedia.height,
     };
   }
 }

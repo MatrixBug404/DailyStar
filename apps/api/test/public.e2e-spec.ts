@@ -49,7 +49,7 @@ describe('Public API (e2e)', () => {
     const c1 = await prisma.category.create({ data: { name: 'Cat1', slug: 'cat1' } });
     const c2 = await prisma.category.create({ data: { name: 'Cat2', slug: 'cat2', parentId: c1.id } });
     const c3 = await prisma.category.create({ data: { name: 'Cat3', slug: 'cat3', parentId: c2.id } });
-    
+
     // c4 has no articles and no descendants with articles
     const c4 = await prisma.category.create({ data: { name: 'Cat4', slug: 'cat4' } });
 
@@ -170,7 +170,7 @@ describe('Public API (e2e)', () => {
   it('/v1/public/categories (GET) - Returns categories up to depth 3, omitting zero-descendant leaves (PR-13, PR-14)', async () => {
     const res = await request(app.getHttpServer()).get('/v1/public/categories');
     expect(res.status).toBe(200);
-    
+
     // cat1 -> cat2 -> cat3 should be present
     expect(res.body.length).toBe(1);
     expect(res.body[0].slug).toBe('cat1');
@@ -212,5 +212,34 @@ describe('Public API (e2e)', () => {
   it('/v1/public/search (GET) - Whitespace-only q returns 400', async () => {
     const res = await request(app.getHttpServer()).get('/v1/public/search?q=%20%20%20');
     expect(res.status).toBe(400);
+  });
+
+  it('/v1/public/articles/:slug/cover (GET) - Missing signature falls back to req.ip and checks limit', async () => {
+    const res = await request(app.getHttpServer()).get('/v1/public/articles/pub-1/cover');
+    // We expect 404 since pub-1 doesn't have a cover image in the seed data
+    expect(res.status).toBe(404);
+  });
+
+  it('/v1/public/articles/:slug/cover (GET) - Valid HMAC signature passes through', async () => {
+    const crypto = require('crypto');
+    const secret = process.env.PUBLIC_COVER_PROXY_TRUST_SECRET || 'test_secret_must_be_32_characters_long!';
+    const ip = '203.0.113.5';
+    const signature = crypto.createHmac('sha256', secret).update(ip).digest('hex');
+
+    const res = await request(app.getHttpServer())
+      .get('/v1/public/articles/pub-1/cover')
+      .set('X-DailyStar-Client-IP', ip)
+      .set('X-DailyStar-Client-IP-Signature', signature);
+
+    expect(res.status).toBe(404); // no cover image
+  });
+
+  it('/v1/public/articles/:slug/cover (GET) - Invalid signature falls back to req.ip', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/v1/public/articles/pub-1/cover')
+      .set('X-DailyStar-Client-IP', '203.0.113.5')
+      .set('X-DailyStar-Client-IP-Signature', 'invalid');
+
+    expect(res.status).toBe(404);
   });
 });

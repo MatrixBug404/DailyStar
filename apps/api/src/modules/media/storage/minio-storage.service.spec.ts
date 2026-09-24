@@ -110,4 +110,21 @@ describe('MinioStorageService', () => {
     (mockS3Client.send as jest.Mock).mockRejectedValue(new Error('AccessDenied'));
     await expect(service.objectExists('test-key')).rejects.toThrow('AccessDenied');
   });
+
+  it('generateSignedDownloadUrl uses internal client (existing private signer still uses internal client)', async () => {
+    (getSignedUrl as jest.Mock).mockClear();
+    (getSignedUrl as jest.Mock).mockResolvedValue('http://internal-signed');
+    await service.generateSignedDownloadUrl('a.jpg', 'image/jpeg', 3600);
+    const clientArg = (getSignedUrl as jest.Mock).mock.calls[0][0];
+    expect(clientArg.send).toBeDefined(); // internal mockS3Client
+  });
+
+  it('generateSignedPublicDownloadUrl uses public client', async () => {
+    (getSignedUrl as jest.Mock).mockClear();
+    (getSignedUrl as jest.Mock).mockResolvedValue('http://public-signed');
+    const result = await service.generateSignedPublicDownloadUrl('a.jpg', 'image/jpeg', 3600);
+    const clientArg = (getSignedUrl as jest.Mock).mock.calls[0][0];
+    expect(clientArg).toBe((service as any).publicClient);
+    expect(result.signedUrl).toBe('http://public-signed');
+  });
 });

@@ -14,19 +14,33 @@ import { StorageService } from './storage.service.interface';
 @Injectable()
 export class MinioStorageService implements StorageService {
   private readonly client: S3Client;
+  private readonly publicClient: S3Client;
   private readonly bucket: string;
 
   constructor(private readonly configService: ConfigService) {
     const endpoint = configService.get<string>('storage.endpoint');
+    const publicEndpoint = configService.get<string>('storage.publicEndpoint');
+
     this.bucket = configService.get<string>('storage.bucket')!;
+
+    const region = configService.get<string>('storage.region') ?? 'us-east-1';
+    const credentials = {
+      accessKeyId: configService.get<string>('storage.accessKeyId')!,
+      secretAccessKey: configService.get<string>('storage.secretAccessKey')!,
+    };
+
     this.client = new S3Client({
       endpoint,
-      region: configService.get<string>('storage.region') ?? 'us-east-1',
-      credentials: {
-        accessKeyId: configService.get<string>('storage.accessKeyId')!,
-        secretAccessKey: configService.get<string>('storage.secretAccessKey')!,
-      },
+      region,
+      credentials,
       forcePathStyle: true, // Required for MinIO path-style addressing
+    });
+
+    this.publicClient = new S3Client({
+      endpoint: publicEndpoint,
+      region,
+      credentials,
+      forcePathStyle: true,
     });
   }
 
@@ -74,6 +88,27 @@ export class MinioStorageService implements StorageService {
     });
 
     return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+  }
+
+  async generateSignedPublicDownloadUrl(
+    key: string,
+    mimeType: string,
+    expiresInSeconds: number,
+  ): Promise<{ signedUrl: string; expiresAt: string }> {
+    const keySegments = key.split('/');
+    const filenameWithExt = keySegments[keySegments.length - 1];
+
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ResponseContentType: mimeType,
+      ResponseContentDisposition: `inline; filename="${filenameWithExt}"`,
+    });
+
+    const signedUrl = await getSignedUrl(this.publicClient, command, { expiresIn: expiresInSeconds });
+    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+
+    return { signedUrl, expiresAt };
   }
 
   /**
