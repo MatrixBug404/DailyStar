@@ -177,7 +177,11 @@ export class ArticlesService {
       }
 
       let slug = current.slug;
-      if (updateArticleDto.title && updateArticleDto.title !== current.currentRevision.title) {
+      if (
+        updateArticleDto.title &&
+        updateArticleDto.title !== current.currentRevision.title &&
+        current.publishedAt === null
+      ) {
         slug = await this.generateUniqueSlug(title, tx);
       }
 

@@ -251,4 +251,90 @@ describe('ArticlesCore (e2e)', () => {
       .set('Authorization', `Bearer ${adminSession}`);
     expect(adminDel.status).toBe(200);
   });
+
+  describe('PB-01 Slug Immutability Workflow', () => {
+    let pbArticleId: string;
+    let pbOriginalSlug: string;
+    let pbVersion: number;
+
+    it('creates a draft and captures original slug', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/v1/articles')
+        .set('Authorization', `Bearer ${authorSession}`)
+        .send({
+          title: 'Immutable Slug Test',
+          body: 'Content',
+          tags: ['test'],
+        });
+      
+      expect(res.status).toBe(201);
+      pbArticleId = res.body.id;
+      pbOriginalSlug = res.body.slug;
+      pbVersion = res.body.version;
+    });
+
+    it('advances article to PUBLISHED', async () => {
+      // SUBMIT
+      let res = await request(app.getHttpServer())
+        .post(`/v1/articles/${pbArticleId}/submit-review`)
+        .set('Authorization', `Bearer ${authorSession}`)
+        .send({ expectedVersion: pbVersion });
+      expect(res.status).toBe(201);
+      pbVersion = res.body.version;
+
+      // START REVIEW
+      res = await request(app.getHttpServer())
+        .post(`/v1/articles/${pbArticleId}/start-review`)
+        .set('Authorization', `Bearer ${editorSession}`)
+        .send({ expectedVersion: pbVersion });
+      expect(res.status).toBe(201);
+      pbVersion = res.body.version;
+
+      // APPROVE
+      res = await request(app.getHttpServer())
+        .post(`/v1/articles/${pbArticleId}/approve`)
+        .set('Authorization', `Bearer ${editorSession}`)
+        .send({ expectedVersion: pbVersion });
+      expect(res.status).toBe(201);
+      pbVersion = res.body.version;
+
+      // PUBLISH
+      res = await request(app.getHttpServer())
+        .post(`/v1/articles/${pbArticleId}/publish`)
+        .set('Authorization', `Bearer ${editorSession}`)
+        .send({ expectedVersion: pbVersion });
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe('PUBLISHED');
+      expect(res.body.publishedAt).not.toBeNull();
+      pbVersion = res.body.version;
+    });
+
+    it('updates title but slug remains unchanged', async () => {
+      // In PUBLISHED state, updating article auto-reverts to DRAFT, wait, does it?
+      // No, updating APPROVED or SCHEDULED reverts to DRAFT.
+      // Updating PUBLISHED does not revert to DRAFT based on current workflow logic in articles.service.ts
+      
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/articles/${pbArticleId}`)
+        .set('Authorization', `Bearer ${authorSession}`)
+        .send({
+          title: 'Immutable Slug Test Changed Title',
+          expectedVersion: pbVersion,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.currentRevision.title).toBe('Immutable Slug Test Changed Title');
+      
+      // SLUG MUST BE UNCHANGED
+      expect(res.body.slug).toBe(pbOriginalSlug);
+    });
+
+    it('verifies public endpoint resolution with original slug', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/v1/public/articles/${pbOriginalSlug}`);
+      
+      expect(res.status).toBe(200);
+      expect(res.body.title).toBe('Immutable Slug Test');
+    });
+  });
 });
