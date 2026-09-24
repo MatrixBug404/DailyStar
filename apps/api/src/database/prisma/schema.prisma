@@ -190,6 +190,14 @@ model ArticleRevision {
   excerpt         String?
   createdAt       DateTime @default(now())
 
+  // Phase 5: Full-text search vector.
+  // PostgreSQL populates this using GENERATED ALWAYS AS ... STORED.
+  // Prisma never reads or writes this field.
+  // All FTS queries use parameterized $queryRaw.
+  // Declared nullable only because Prisma requires Unsupported columns
+  // to be nullable; the DB column itself is never NULL.
+  searchVector    Unsupported("tsvector")?
+
   article         Article  @relation("ArticleRevisions", fields: [articleId], references: [id], onDelete: Cascade)
   author          User     @relation("ArticleRevisionAuthor", fields: [authorId], references: [id])
   
