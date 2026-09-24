@@ -10,6 +10,8 @@ import { CategoriesTagsModule } from './modules/categories-tags/categories-tags.
 import { AuditModule } from './modules/audit/audit.module';
 import { WorkflowModule } from './modules/workflow/workflow.module';
 import { MediaModule } from './modules/media/media.module';
+import { PublicModule } from './modules/public/public.module';
+import { SearchModule } from './modules/search/search.module';
 
 /**
  * Root application module.
@@ -32,6 +34,8 @@ import { MediaModule } from './modules/media/media.module';
     AuditModule,
     WorkflowModule,
     MediaModule,
+    PublicModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],
