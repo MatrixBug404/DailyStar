@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -354,7 +355,6 @@ describe('Public API (e2e)', () => {
   });
 
   it('/v1/public/articles/:slug/cover (GET) - Valid HMAC signature passes through', async () => {
-    const crypto = require('crypto');
     const secret = process.env.PUBLIC_COVER_PROXY_TRUST_SECRET || 'test_secret_must_be_32_characters_long!';
     const ip = '203.0.113.5';
     const signature = crypto.createHmac('sha256', secret).update(ip).digest('hex');
@@ -377,7 +377,6 @@ describe('Public API (e2e)', () => {
   });
 
   it('/v1/public/articles/:slug/cover (GET) - PB-02 Cover endpoint rate limits after 100 requests', async () => {
-    const crypto = require('crypto');
     const secret = process.env.PUBLIC_COVER_PROXY_TRUST_SECRET || 'test_secret_must_be_32_characters_long!';
     const ip = '203.0.113.100';
     const signature = crypto.createHmac('sha256', secret).update(ip).digest('hex');

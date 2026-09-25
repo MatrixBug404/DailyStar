@@ -21,7 +21,7 @@ export class CategoryArticlesQueryDto {
 
   @IsIn(['publishedAt'])
   @IsOptional()
-  orderBy: 'publishedAt' = 'publishedAt';
+  orderBy = 'publishedAt' as const;
 
   @IsIn(['asc', 'desc'])
   @IsOptional()

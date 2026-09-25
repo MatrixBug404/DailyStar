@@ -3,6 +3,7 @@ import { PublicService } from './public.service';
 import { PostgresFtsProvider } from '../search/providers/postgres-fts.provider';
 import { prisma } from '../../database/client';
 import { NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 jest.mock('../../database/client', () => ({
   prisma: {
@@ -35,7 +36,7 @@ describe('PublicService', () => {
           useValue: { generateSignedPublicDownloadUrl: jest.fn() },
         },
         {
-          provide: require('@nestjs/config').ConfigService,
+          provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue(3600) },
         },
       ],
