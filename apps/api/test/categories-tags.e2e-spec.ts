@@ -9,6 +9,7 @@ describe('Categories and Tags (e2e)', () => {
   jest.setTimeout(30000);
   let app: INestApplication;
   let adminSession: string;
+  let authorSession: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -26,7 +27,7 @@ describe('Categories and Tags (e2e)', () => {
     await app.init();
 
     await prisma.user.deleteMany({
-      where: { email: 'admin_e2e@dailystar.local' },
+      where: { email: { in: ['admin_e2e@dailystar.local', 'author_categories_e2e@dailystar.local'] } },
     });
 
     await prisma.category.deleteMany({
@@ -51,6 +52,26 @@ describe('Categories and Tags (e2e)', () => {
       .post('/auth/login')
       .send({ email: 'admin_e2e@dailystar.local', password: 'password123' });
     adminSession = adminLogin.body.accessToken;
+
+    // Setup Author
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ email: 'author_categories_e2e@dailystar.local', password: 'password123', displayName: 'Author' });
+    const authorUser = await prisma.user.findUnique({
+      where: { email: 'author_categories_e2e@dailystar.local' },
+    });
+    await prisma.userRole.deleteMany({ where: { userId: authorUser!.id } });
+    await prisma.userRole.create({
+      data: {
+        userId: authorUser!.id,
+        roleId: (await prisma.role.findUnique({ where: { name: 'author' } }))!.id,
+      },
+    });
+
+    const authorLogin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'author_categories_e2e@dailystar.local', password: 'password123' });
+    authorSession = authorLogin.body.accessToken;
   });
 
   afterAll(async () => {
@@ -58,6 +79,19 @@ describe('Categories and Tags (e2e)', () => {
   });
 
   let cat1Id: string, cat2Id: string, cat3Id: string;
+
+  it('/v1/categories (GET) - Unauthenticated', async () => {
+    const res = await request(app.getHttpServer()).get('/v1/categories');
+    expect(res.status).toBe(401);
+  });
+
+  it('/v1/categories (POST) - Author should get 403', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/v1/categories')
+      .set('Authorization', `Bearer ${authorSession}`)
+      .send({ name: 'Author Cat' });
+    expect(res.status).toBe(403);
+  });
 
   it('/v1/categories (POST) - Hierarchy depth limit enforcement', async () => {
     const cat1 = await request(app.getHttpServer())
@@ -93,5 +127,36 @@ describe('Categories and Tags (e2e)', () => {
       .delete(`/v1/categories/${cat1Id}`)
       .set('Authorization', `Bearer ${adminSession}`);
     expect(delRes.status).toBe(409);
+  });
+
+  it('/v1/categories (GET) - Author can read categories', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/v1/categories')
+      .set('Authorization', `Bearer ${authorSession}`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  it('/v1/categories/:id (GET) - Author can read single category', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/v1/categories/${cat1Id}`)
+      .set('Authorization', `Bearer ${authorSession}`);
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(cat1Id);
+  });
+
+  it('/v1/categories/:id (PATCH) - Author should get 403', async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/v1/categories/${cat1Id}`)
+      .set('Authorization', `Bearer ${authorSession}`)
+      .send({ name: 'Hacked Cat' });
+    expect(res.status).toBe(403);
+  });
+
+  it('/v1/categories/:id (DELETE) - Author should get 403', async () => {
+    const res = await request(app.getHttpServer())
+      .delete(`/v1/categories/${cat1Id}`)
+      .set('Authorization', `Bearer ${authorSession}`);
+    expect(res.status).toBe(403);
   });
 });

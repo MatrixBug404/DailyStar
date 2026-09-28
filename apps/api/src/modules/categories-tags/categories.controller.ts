@@ -8,31 +8,35 @@ import { PermissionGuard } from '../rbac/guards/permission.guard';
 
 @Controller('v1/categories')
 @UseGuards(AuthGuard, PermissionGuard)
-@RequirePermission('category.manage')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Post()
+  @RequirePermission('category.manage')
   create(@Body() createCategoryDto: CreateCategoryDto) {
     return this.categoriesService.create(createCategoryDto);
   }
 
   @Get()
+  @RequirePermission('category.read')
   findAll() {
     return this.categoriesService.findAll();
   }
 
   @Get(':id')
+  @RequirePermission('category.read')
   findOne(@Param('id') id: string) {
     return this.categoriesService.findOne(id);
   }
 
   @Patch(':id')
+  @RequirePermission('category.manage')
   update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto) {
     return this.categoriesService.update(id, updateCategoryDto);
   }
 
   @Delete(':id')
+  @RequirePermission('category.manage')
   remove(@Param('id') id: string) {
     return this.categoriesService.remove(id);
   }
