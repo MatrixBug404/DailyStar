@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ArticlesController } from './articles.controller';
 import { ArticlesService } from './articles.service';
 import { JwtService } from '@nestjs/jwt';
+import { PermissionResolverService } from '../rbac/permission-resolver.service';
 
 describe('ArticlesController', () => {
   let controller: ArticlesController;
@@ -12,6 +13,7 @@ describe('ArticlesController', () => {
       providers: [
         { provide: ArticlesService, useValue: {} },
         { provide: JwtService, useValue: {} },
+        { provide: PermissionResolverService, useValue: {} },
       ],
     }).compile();
 

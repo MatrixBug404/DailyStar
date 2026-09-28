@@ -12,6 +12,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
 import { MediaModule } from './modules/media/media.module';
 import { PublicModule } from './modules/public/public.module';
 import { SearchModule } from './modules/search/search.module';
+import { RbacModule } from './modules/rbac/rbac.module';
 
 /**
  * Root application module.
@@ -36,6 +37,7 @@ import { SearchModule } from './modules/search/search.module';
     MediaModule,
     PublicModule,
     SearchModule,
+    RbacModule,
   ],
   controllers: [AppController],
   providers: [AppService],

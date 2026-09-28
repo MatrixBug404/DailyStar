@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TagsController } from './tags.controller';
 import { TagsService } from './tags.service';
 import { JwtService } from '@nestjs/jwt';
+import { PermissionResolverService } from '../rbac/permission-resolver.service';
 
 describe('TagsController', () => {
   let controller: TagsController;
@@ -12,6 +13,7 @@ describe('TagsController', () => {
       providers: [
         { provide: TagsService, useValue: {} },
         { provide: JwtService, useValue: {} },
+        { provide: PermissionResolverService, useValue: {} },
       ],
     }).compile();
 

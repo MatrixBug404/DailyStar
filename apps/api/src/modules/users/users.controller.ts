@@ -11,14 +11,6 @@ export class UsersController {
   @Get('me')
   async getMe(@Req() req: Request) {
     const userPayload = (req as unknown as { user: { sub: string } }).user;
-    const user = await this.usersService.findById(userPayload.sub);
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Never return password hash
-    const { passwordHash: _passwordHash, ...safeUser } = user;
-    return safeUser;
+    return this.usersService.getMe(userPayload.sub);
   }
 }
