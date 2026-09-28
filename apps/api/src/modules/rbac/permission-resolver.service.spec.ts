@@ -100,7 +100,7 @@ describe('PermissionResolverService and PermissionGuard', () => {
         getHandler: jest.fn(),
         getClass: jest.fn(),
       } as unknown as ExecutionContext;
-      
+
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
       jest.spyOn(resolver, 'resolveUserPermissions').mockResolvedValue({
         roles: ['author'],
