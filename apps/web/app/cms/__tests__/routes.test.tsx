@@ -11,8 +11,29 @@ import CmsNewArticlePage from '../(protected)/articles/new/page';
 import CmsArticleEditorPage from '../(protected)/articles/[id]/page';
 import CmsReviewPage from '../(protected)/review/page';
 import CmsCategoriesPage from '../(protected)/categories/page';
+import { useSession } from '../session-provider';
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: jest.fn() }),
+}));
+
+jest.mock('../session-provider', () => ({
+  useSession: jest.fn(() => ({
+    status: 'authenticated',
+    login: jest.fn(),
+    logout: jest.fn(),
+  })),
+  SessionProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 
 describe('D6 CMS Route Tree', () => {
+  beforeEach(() => {
+    (useSession as jest.Mock).mockReturnValue({
+      status: 'authenticated',
+      login: jest.fn(),
+      logout: jest.fn(),
+    });
+  });
   it('does NOT have apps/web/app/cms/page.tsx to avoid route collision', () => {
     const pagePath = path.join(__dirname, '..', 'page.tsx');
     expect(fs.existsSync(pagePath)).toBe(false);
@@ -25,6 +46,11 @@ describe('D6 CMS Route Tree', () => {
     });
 
     it('renders CmsLoginPage placeholder', () => {
+      (useSession as jest.Mock).mockReturnValue({
+        status: 'unauthenticated',
+        login: jest.fn(),
+        logout: jest.fn(),
+      });
       render(<CmsLoginPage />);
       expect(screen.getByText('CMS Login')).toBeInTheDocument();
     });
