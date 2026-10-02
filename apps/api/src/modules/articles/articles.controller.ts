@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query } from '@nestjs/common';
 import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { SetCoverMediaDto } from '../media/dto/set-cover-media.dto';
+import { ArticleListQueryDto } from './dto/article-list-query.dto';
 import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionGuard } from '../rbac/guards/permission.guard';
@@ -23,8 +24,8 @@ export class ArticlesController {
   }
 
   @Get()
-  findAll(@Req() req: any) {
-    return this.articlesService.findAll(this.getUserContext(req));
+  findAll(@Query() query: ArticleListQueryDto, @Req() req: any) {
+    return this.articlesService.findAll(query, this.getUserContext(req));
   }
 
   @Get(':id')

@@ -337,4 +337,62 @@ describe('ArticlesCore (e2e)', () => {
       expect(res.body.title).toBe('Immutable Slug Test');
     });
   });
+
+  describe('Phase 6 D3: Article Listing Enhancement', () => {
+    beforeAll(async () => {
+      // Create some articles for pagination tests
+      for (let i = 0; i < 5; i++) {
+        await request(app.getHttpServer())
+          .post('/v1/articles')
+          .set('Authorization', `Bearer ${authorSession}`)
+          .send({
+            title: `Pagination Test Article ${i}`,
+            body: 'Content',
+            tags: ['test'],
+          });
+      }
+    });
+
+    it('/v1/articles (GET) - Validates pagination and returns metadata', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/v1/articles?page=1&limit=2')
+        .set('Authorization', `Bearer ${authorSession}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.page).toBe(1);
+      expect(res.body.limit).toBe(2);
+      expect(res.body.data).toBeInstanceOf(Array);
+      expect(res.body.data.length).toBeLessThanOrEqual(2);
+    });
+
+    it('/v1/articles (GET) - Rejects invalid pagination with HTTP 400', async () => {
+      const res1 = await request(app.getHttpServer())
+        .get('/v1/articles?page=0')
+        .set('Authorization', `Bearer ${authorSession}`);
+      expect(res1.status).toBe(400);
+
+      const res2 = await request(app.getHttpServer())
+        .get('/v1/articles?limit=101')
+        .set('Authorization', `Bearer ${authorSession}`);
+      expect(res2.status).toBe(400);
+
+      const res3 = await request(app.getHttpServer())
+        .get('/v1/articles?page=-1')
+        .set('Authorization', `Bearer ${authorSession}`);
+      expect(res3.status).toBe(400);
+    });
+
+    it('/v1/articles (GET) - Deterministic sorting by title', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/v1/articles?sortBy=title&order=asc')
+        .set('Authorization', `Bearer ${authorSession}`);
+
+      expect(res.status).toBe(200);
+      if (res.body.data.length > 1) {
+        const title1 = res.body.data[0].currentRevision.title;
+        const title2 = res.body.data[1].currentRevision.title;
+        expect(title1 <= title2).toBeTruthy();
+      }
+    });
+  });
 });

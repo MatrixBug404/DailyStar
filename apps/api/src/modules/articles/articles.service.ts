@@ -8,6 +8,8 @@ import {
 import { prisma } from '../../database/client';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
+import { ArticleListQueryDto } from './dto/article-list-query.dto';
+import { PaginatedResponse } from '@dailystar/types';
 import { generateSlug } from './slug.util';
 import { RevisionsService } from './revisions.service';
 import { AuthorProfilesService } from './author-profiles.service';
@@ -92,12 +94,49 @@ export class ArticlesService {
     });
   }
 
-  async findAll(user: any) {
+  async findAll(query: ArticleListQueryDto, user: any): Promise<PaginatedResponse<any>> {
+    const { page, limit, status, categoryId, sortBy, order } = query;
     const where: any = { deletedAt: null };
     if (!user.permissions.includes('article.read.any')) {
       where.primaryAuthorId = user.sub;
     }
-    return prisma.article.findMany({ where, include: { currentRevision: true } });
+
+    if (status && status.length > 0) {
+      where.status = { in: status };
+    }
+
+    if (categoryId) {
+      where.categoryId = categoryId;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const orderBy: any[] = [];
+    if (sortBy === 'title') {
+      orderBy.push({ currentRevision: { title: order } });
+    } else {
+      orderBy.push({ [sortBy]: order });
+    }
+    // secondary deterministic tie-breaker
+    orderBy.push({ id: 'asc' });
+
+    const [items, totalItems] = await prisma.$transaction([
+      prisma.article.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        include: { currentRevision: true },
+      }),
+      prisma.article.count({ where }),
+    ]);
+
+    return {
+      data: items,
+      total: totalItems,
+      page,
+      limit,
+    };
   }
 
   async findOne(id: string, user: any) {

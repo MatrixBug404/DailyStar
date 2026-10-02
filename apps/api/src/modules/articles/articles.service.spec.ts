@@ -21,6 +21,8 @@ jest.mock('../../database/client', () => ({
     article: {
       findUnique: jest.fn(),
       update: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
     },
     $transaction: jest.fn(),
   },
@@ -34,7 +36,12 @@ describe('ArticlesService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    (prisma.$transaction as jest.Mock).mockImplementation(async (callback) => callback(mockTx));
+    (prisma.$transaction as jest.Mock).mockImplementation(async (arg) => {
+      if (Array.isArray(arg)) {
+        return Promise.all(arg);
+      }
+      return arg(mockTx);
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -132,6 +139,60 @@ describe('ArticlesService', () => {
           data: expect.objectContaining({
             slug: 'original-published-slug', // Preserved!
           }),
+        }),
+      );
+    });
+  });
+
+  describe('findAll (D3 Pagination & Filtering)', () => {
+    it('should paginate, filter, and sort articles', async () => {
+      const user = { sub: 'author-1', permissions: ['article.read.any'] };
+      const query: any = {
+        page: 2,
+        limit: 10,
+        status: ['PUBLISHED'],
+        categoryId: 'cat-1',
+        sortBy: 'title',
+        order: 'asc',
+      };
+
+      (prisma.article.findMany as jest.Mock).mockResolvedValue(['art-1', 'art-2']);
+      (prisma.article.count as jest.Mock).mockResolvedValue(20);
+
+      const result = await service.findAll(query, user);
+
+      expect(prisma.article.findMany).toHaveBeenCalledWith({
+        where: { deletedAt: null, status: { in: ['PUBLISHED'] }, categoryId: 'cat-1' },
+        skip: 10,
+        take: 10,
+        orderBy: [{ currentRevision: { title: 'asc' } }, { id: 'asc' }],
+        include: { currentRevision: true },
+      });
+      expect(prisma.article.count).toHaveBeenCalledWith({
+        where: { deletedAt: null, status: { in: ['PUBLISHED'] }, categoryId: 'cat-1' },
+      });
+
+      expect(result).toEqual({
+        data: ['art-1', 'art-2'],
+        total: 20,
+        page: 2,
+        limit: 10,
+      });
+    });
+
+    it('should enforce ownership if article.read.any is missing', async () => {
+      const user = { sub: 'author-1', permissions: [] };
+      const query: any = { page: 1, limit: 10, sortBy: 'updatedAt', order: 'desc' };
+
+      (prisma.article.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.article.count as jest.Mock).mockResolvedValue(0);
+
+      await service.findAll(query, user);
+
+      expect(prisma.article.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { deletedAt: null, primaryAuthorId: 'author-1' },
+          orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
         }),
       );
     });
