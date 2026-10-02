@@ -3,6 +3,8 @@ import { WorkflowService } from './workflow.service';
 import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionGuard } from '../rbac/guards/permission.guard';
+import { RequestChangesDto } from './dto/request-changes.dto';
+import { RejectDto } from './dto/reject.dto';
 
 @Controller('v1/articles')
 @UseGuards(AuthGuard, PermissionGuard)
@@ -27,7 +29,7 @@ export class WorkflowController {
 
   @Post(':id/request-changes')
   @RequirePermission('article.request-changes')
-  requestChanges(@Param('id') id: string, @Req() req: any, @Body() body: any) {
+  requestChanges(@Param('id') id: string, @Req() req: any, @Body() body: RequestChangesDto) {
     return this.workflowService.requestChanges(
       id,
       this.getUserContext(req),
@@ -38,7 +40,7 @@ export class WorkflowController {
 
   @Post(':id/reject')
   @RequirePermission('article.reject')
-  reject(@Param('id') id: string, @Req() req: any, @Body() body: any) {
+  reject(@Param('id') id: string, @Req() req: any, @Body() body: RejectDto) {
     return this.workflowService.reject(
       id,
       this.getUserContext(req),

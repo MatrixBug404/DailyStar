@@ -101,7 +101,7 @@ export class WorkflowService {
     });
   }
 
-  async requestChanges(id: string, user: any, expectedVersion?: number, comment?: string) {
+  async requestChanges(id: string, user: any, expectedVersion: number | undefined, comment: string) {
     return prisma.$transaction(async (tx) => {
       const article = await this.getArticle(id, user, expectedVersion, tx);
       if (article.status !== 'UNDER_REVIEW')
@@ -122,7 +122,7 @@ export class WorkflowService {
           entityId: id,
           action: 'REQUEST_CHANGES',
           actorId: user.sub,
-          metadata: comment ? { reason: comment } : undefined,
+          metadata: { reason: comment },
           beforeState: { status: article.status },
           afterState: { status: updated.status },
         },
@@ -133,7 +133,7 @@ export class WorkflowService {
     });
   }
 
-  async reject(id: string, user: any, expectedVersion?: number, comment?: string) {
+  async reject(id: string, user: any, expectedVersion: number | undefined, comment: string) {
     return prisma.$transaction(async (tx) => {
       const article = await this.getArticle(id, user, expectedVersion, tx);
       if (article.status !== 'UNDER_REVIEW')
@@ -154,7 +154,7 @@ export class WorkflowService {
           entityId: id,
           action: 'REJECT',
           actorId: user.sub,
-          metadata: comment ? { reason: comment } : undefined,
+          metadata: { reason: comment },
           beforeState: { status: article.status },
           afterState: { status: updated.status },
         },

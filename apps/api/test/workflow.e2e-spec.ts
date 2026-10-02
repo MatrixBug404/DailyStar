@@ -167,6 +167,24 @@ describe('Workflow & Concurrency E2E (Phase 3)', () => {
   });
 
   it('5. UNDER_REVIEW -> DRAFT via request-changes', async () => {
+    const resNoComment = await request(app.getHttpServer())
+      .post(`/v1/articles/${articleId}/request-changes`)
+      .set('Authorization', `Bearer ${editorSession}`)
+      .send({ expectedVersion: currentVersion });
+    expect(resNoComment.status).toBe(400);
+
+    const resWhitespace = await request(app.getHttpServer())
+      .post(`/v1/articles/${articleId}/request-changes`)
+      .set('Authorization', `Bearer ${editorSession}`)
+      .send({ expectedVersion: currentVersion, comment: '   ' });
+    expect(resWhitespace.status).toBe(400);
+
+    const resReason = await request(app.getHttpServer())
+      .post(`/v1/articles/${articleId}/request-changes`)
+      .set('Authorization', `Bearer ${editorSession}`)
+      .send({ expectedVersion: currentVersion, comment: 'Valid', reason: 'Invalid' });
+    expect(resReason.status).toBe(400);
+
     const res = await request(app.getHttpServer())
       .post(`/v1/articles/${articleId}/request-changes`)
       .set('Authorization', `Bearer ${editorSession}`)
@@ -200,6 +218,18 @@ describe('Workflow & Concurrency E2E (Phase 3)', () => {
       .send({ expectedVersion: currentVersion });
     expect(res.status).toBe(201);
     currentVersion = res.body.version;
+
+    const resNoComment = await request(app.getHttpServer())
+      .post(`/v1/articles/${articleId}/reject`)
+      .set('Authorization', `Bearer ${editorSession}`)
+      .send({ expectedVersion: currentVersion });
+    expect(resNoComment.status).toBe(400);
+
+    const resWhitespace = await request(app.getHttpServer())
+      .post(`/v1/articles/${articleId}/reject`)
+      .set('Authorization', `Bearer ${editorSession}`)
+      .send({ expectedVersion: currentVersion, comment: '   ' });
+    expect(resWhitespace.status).toBe(400);
 
     res = await request(app.getHttpServer())
       .post(`/v1/articles/${articleId}/reject`)
