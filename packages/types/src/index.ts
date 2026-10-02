@@ -41,3 +41,7 @@ export interface ApiErrorResponse {
   timestamp: string;
   path: string;
 }
+
+// ─── Phase 6 Domain Types ──────────────────────────────────────────────────────
+
+export * from './article';
