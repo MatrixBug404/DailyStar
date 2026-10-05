@@ -22,7 +22,7 @@ export function RevisionHistory({ articleId }: { articleId: string }) {
       .finally(() => {
         if (isMounted) setLoading(false);
       });
-      
+
     return () => { isMounted = false; };
   }, [articleId, get]);
 

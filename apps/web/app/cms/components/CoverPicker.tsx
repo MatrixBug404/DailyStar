@@ -24,7 +24,7 @@ export function CoverPicker({ articleId, expectedVersion, currentCoverId, onCove
   const [loadingMedia, setLoadingMedia] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [pendingMediaId, setPendingMediaId] = useState<string | null | undefined>(undefined);
-  
+
   const fetchCurrentCover = useCallback(async () => {
     if (!currentCoverId) {
       setCurrentCoverUrl(null);
@@ -103,11 +103,11 @@ export function CoverPicker({ articleId, expectedVersion, currentCoverId, onCove
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
-    
+
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const uploaded = await post<MediaSummary>('/v1/media', formData);
       if (showEditWarning) {
         setPendingMediaId(uploaded.id);
@@ -138,7 +138,7 @@ export function CoverPicker({ articleId, expectedVersion, currentCoverId, onCove
       ) : (
         <p className="text-gray-500 mb-4 text-sm">No cover image set.</p>
       )}
-      
+
       <div className="flex gap-2">
         <Button onClick={handleOpenModal} disabled={isDisabled} size="sm">
           {currentCoverId ? 'Change Cover' : 'Set Cover'}
@@ -155,7 +155,7 @@ export function CoverPicker({ articleId, expectedVersion, currentCoverId, onCove
           <h4 className="text-sm font-medium mb-2">Upload New</h4>
           <input type="file" accept="image/*" onChange={handleUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
         </div>
-        
+
         <h4 className="text-sm font-medium mb-2">Or Choose from Your Uploaded Media</h4>
         {loadingMedia ? (
           <p>Loading...</p>

@@ -232,17 +232,17 @@ export function ArticleList({ fixedStatusFilter, title }: ArticleListProps) {
                 Showing <span className="font-medium">{(data.page - 1) * data.limit + 1}</span> to <span className="font-medium">{Math.min(data.page * data.limit, data.total)}</span> of <span className="font-medium">{data.total}</span> results
               </p>
               <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  variant="secondary" 
+                <Button
+                  size="sm"
+                  variant="secondary"
                   disabled={data.page === 1}
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                 >
                   Previous
                 </Button>
-                <Button 
-                  size="sm" 
-                  variant="secondary" 
+                <Button
+                  size="sm"
+                  variant="secondary"
                   disabled={data.page * data.limit >= data.total}
                   onClick={() => setPage(p => p + 1)}
                 >

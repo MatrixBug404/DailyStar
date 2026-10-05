@@ -69,7 +69,7 @@ export function WorkflowPanel({ article, onSuccess }: WorkflowPanelProps) {
         </Button>
       );
     }
-    
+
     if (permissions.includes('article.request-changes')) {
       actions.push(
         <Button key="request-changes" onClick={() => {

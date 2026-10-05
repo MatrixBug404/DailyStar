@@ -36,7 +36,7 @@ describe('CategoryManager', () => {
     (useSession as jest.Mock).mockReturnValue({
       permissions: [],
     });
-    
+
     await act(async () => {
       render(<CategoryManager />);
     });
@@ -54,7 +54,7 @@ describe('CategoryManager', () => {
     mockGet.mockResolvedValue([
       { id: '1', name: 'Tech', slug: 'tech', children: [] }
     ]);
-    
+
     await act(async () => {
       render(<CategoryManager />);
     });
@@ -66,16 +66,16 @@ describe('CategoryManager', () => {
     await act(async () => {
       fireEvent.click(screen.getByText('Add Category'));
     });
-    
+
     const nameInput = screen.getByLabelText('Name');
     await act(async () => {
       fireEvent.change(nameInput, { target: { value: 'New Cat' } });
     });
-    
+
     await act(async () => {
       fireEvent.click(screen.getByText('Save'));
     });
-    
+
     expect(mockPost).toHaveBeenCalledWith('/v1/categories', expect.objectContaining({ name: 'New Cat' }));
 
     // Edit
@@ -103,7 +103,7 @@ describe('CategoryManager', () => {
     });
 
     mockGet.mockResolvedValueOnce([]);
-    
+
     await act(async () => {
       render(<CategoryManager />);
     });
@@ -111,12 +111,12 @@ describe('CategoryManager', () => {
     await act(async () => {
       fireEvent.click(screen.getByText('Add Category'));
     });
-    
+
     const nameInput = screen.getByLabelText('Name');
     await act(async () => {
       fireEvent.change(nameInput, { target: { value: 'Duplicate' } });
     });
-    
+
     const error = new CmsApiError(409, 'Conflict', 'CATEGORY_SLUG_CONFLICT');
     Object.assign(error, { code: 'CATEGORY_SLUG_CONFLICT', message: 'Conflict' });
     mockPost.mockRejectedValue(error);
@@ -124,7 +124,7 @@ describe('CategoryManager', () => {
     await act(async () => {
       fireEvent.click(screen.getByText('Save'));
     });
-    
+
     expect(alertMock).toHaveBeenCalledWith('A category with this slug already exists.');
   });
 });

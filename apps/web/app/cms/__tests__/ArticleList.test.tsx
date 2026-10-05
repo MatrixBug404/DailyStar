@@ -25,7 +25,7 @@ describe('ArticleList', () => {
       permissions: ['article.read.any', 'category.read'],
       user: { id: 'user-1' }
     });
-    
+
     mockGet.mockImplementation((url: string) => {
       if (url === '/v1/categories') return Promise.resolve([
         { id: 'cat-1', name: 'Category 1' }
@@ -57,48 +57,48 @@ describe('ArticleList', () => {
   it('changes status filter and re-fetches', async () => {
     await renderComponent();
     mockGet.mockClear();
-    
+
     const select = screen.getByLabelText('Status') as HTMLSelectElement;
     await act(async () => {
       fireEvent.change(select, { target: { value: ArticleStatus.PUBLISHED } });
     });
-    
+
     expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('status=PUBLISHED'));
   });
 
   it('changes category filter and re-fetches', async () => {
     await renderComponent();
     mockGet.mockClear();
-    
+
     const select = screen.getByLabelText('Category') as HTMLSelectElement;
     await act(async () => {
       fireEvent.change(select, { target: { value: 'cat-1' } });
     });
-    
+
     expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('categoryId=cat-1'));
   });
 
   it('changes sortBy and re-fetches', async () => {
     await renderComponent();
     mockGet.mockClear();
-    
+
     const select = screen.getByLabelText('Sort By') as HTMLSelectElement;
     await act(async () => {
       fireEvent.change(select, { target: { value: 'createdAt' } });
     });
-    
+
     expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('sortBy=createdAt'));
   });
 
   it('changes order and re-fetches', async () => {
     await renderComponent();
     mockGet.mockClear();
-    
+
     const select = screen.getByLabelText('Order') as HTMLSelectElement;
     await act(async () => {
       fireEvent.change(select, { target: { value: 'asc' } });
     });
-    
+
     expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('order=asc'));
   });
 
@@ -144,7 +144,7 @@ describe('ArticleList', () => {
     });
 
     await renderComponent();
-    
+
     const select = screen.getByLabelText('Status') as HTMLSelectElement;
     await act(async () => {
       fireEvent.change(select, { target: { value: ArticleStatus.PUBLISHED } });
@@ -155,9 +155,9 @@ describe('ArticleList', () => {
 
   it('respects fixedStatusFilter and hides filter bar', async () => {
     await renderComponent({ title: 'Review Queue', fixedStatusFilter: [ArticleStatus.SUBMITTED_FOR_REVIEW] });
-    
+
     expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('status=SUBMITTED_FOR_REVIEW'));
-    
+
     // Filter controls should not be in the document
     expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Category')).not.toBeInTheDocument();

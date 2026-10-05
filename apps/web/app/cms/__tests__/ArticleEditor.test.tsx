@@ -51,7 +51,7 @@ describe('ArticleEditor', () => {
     (useRouter as jest.Mock).mockReturnValue({
       push: mockPush
     });
-    
+
     mockGet.mockImplementation((url: string) => {
       if (url === '/v1/categories') return Promise.resolve([]);
       if (url.endsWith('/revisions')) return Promise.resolve([]);
@@ -82,31 +82,31 @@ describe('ArticleEditor', () => {
   it('validates required fields', async () => {
     await renderComponent('new');
     const form = screen.getByText('Save Article').closest('form');
-    
+
     // Trigger submit with empty fields
     await act(async () => {
       fireEvent.submit(form!);
     });
-    
+
     expect(screen.getByText(/Title must be between 3 and 150 characters/)).toBeInTheDocument();
 
     // Fix title, but empty body
     await act(async () => {
       fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Valid Title' } });
     });
-    
+
     await act(async () => {
       fireEvent.submit(form!);
     });
 
     expect(screen.getByText(/Body cannot be empty/)).toBeInTheDocument();
-    
+
     // Fix body, but long excerpt
     await act(async () => {
       fireEvent.change(screen.getByLabelText('Body (Markdown)'), { target: { value: 'Valid body' } });
       fireEvent.change(screen.getByLabelText('Excerpt'), { target: { value: 'a'.repeat(501) } });
     });
-    
+
     await act(async () => {
       fireEvent.submit(form!);
     });
@@ -118,7 +118,7 @@ describe('ArticleEditor', () => {
       fireEvent.change(screen.getByLabelText('Excerpt'), { target: { value: 'Valid excerpt' } });
       fireEvent.change(screen.getByLabelText('Tags (comma-separated)'), { target: { value: '1,2,3,4,5,6,7,8,9,10,11' } });
     });
-    
+
     await act(async () => {
       fireEvent.submit(form!);
     });
@@ -128,14 +128,14 @@ describe('ArticleEditor', () => {
 
   it('CREATE payload structure', async () => {
     await renderComponent('new');
-    
+
     await act(async () => {
       fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'New Title' } });
       fireEvent.change(screen.getByLabelText('Body (Markdown)'), { target: { value: 'New Body' } });
       fireEvent.change(screen.getByLabelText('Excerpt'), { target: { value: 'New Excerpt' } });
       fireEvent.change(screen.getByLabelText('Tags (comma-separated)'), { target: { value: 'tag1, tag2' } });
     });
-    
+
     mockPost.mockResolvedValueOnce({ id: '999' });
 
     const form = screen.getByText('Save Article').closest('form');
@@ -157,12 +157,12 @@ describe('ArticleEditor', () => {
 
   it('UPDATE payload structure', async () => {
     await renderComponent('123');
-    
+
     await act(async () => {
       fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Updated Title' } });
       fireEvent.change(screen.getByLabelText('Body (Markdown)'), { target: { value: 'Updated Body' } });
     });
-    
+
     mockPatch.mockResolvedValueOnce({});
     mockGet.mockResolvedValueOnce({
       id: '123', status: ArticleStatus.DRAFT, version: 2, currentRevision: { title: 'Updated Title', body: 'Updated Body' }
@@ -183,21 +183,21 @@ describe('ArticleEditor', () => {
 
   it('prevents double-submit', async () => {
     await renderComponent('new');
-    
+
     await act(async () => {
       fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'New Title' } });
       fireEvent.change(screen.getByLabelText('Body (Markdown)'), { target: { value: 'New Body' } });
     });
-    
+
     // Make post hang
     let resolvePost: any;
     mockPost.mockImplementation(() => new Promise(r => resolvePost = r));
 
     const form = screen.getByText('Save Article').closest('form');
-    
+
     // First submit
     fireEvent.submit(form!);
-    
+
     // Ensure saving state reflects
     await waitFor(() => {
       expect(screen.getByText('Saving...')).toBeInTheDocument();
@@ -219,14 +219,14 @@ describe('ArticleEditor', () => {
     });
 
     await renderComponent('123');
-    
+
     const form = screen.getByText('Save Article').closest('form');
     await act(async () => {
       fireEvent.submit(form!);
     });
 
     expect(screen.getByText(/Saving changes will revert this article to/)).toBeInTheDocument();
-    
+
     // Cancel
     await act(async () => {
       fireEvent.click(screen.getByText('Cancel'));
@@ -245,14 +245,14 @@ describe('ArticleEditor', () => {
     });
 
     await renderComponent('123');
-    
+
     const form = screen.getByText('Save Article').closest('form');
     await act(async () => {
       fireEvent.submit(form!);
     });
 
     expect(screen.getByText(/scheduled publication will be cancelled/)).toBeInTheDocument();
-    
+
     mockPatch.mockResolvedValueOnce({});
     mockGet.mockResolvedValueOnce({
       id: '123', status: ArticleStatus.DRAFT, version: 2, currentRevision: { title: 'Valid Title', body: 'Valid Body' }

@@ -11,7 +11,7 @@ export function CategoryManager() {
   const { get, post, patch, del } = useCmsApi();
   const { permissions } = useSession();
   const canManage = permissions.includes('category.manage');
-  
+
   const [categories, setCategories] = useState<CategorySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -167,10 +167,10 @@ export function CategoryManager() {
         <form onSubmit={handleSave} className="space-y-4 pt-2">
           <div>
             <label htmlFor="cat-name" className="block text-sm font-medium mb-1">Name</label>
-            <input 
+            <input
               id="cat-name"
               required
-              type="text" 
+              type="text"
               className="w-full border rounded px-3 py-2"
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -178,9 +178,9 @@ export function CategoryManager() {
           </div>
           <div>
             <label htmlFor="cat-slug" className="block text-sm font-medium mb-1">Slug (optional)</label>
-            <input 
+            <input
               id="cat-slug"
-              type="text" 
+              type="text"
               className="w-full border rounded px-3 py-2"
               value={formData.slug}
               onChange={e => setFormData({ ...formData, slug: e.target.value })}
@@ -188,7 +188,7 @@ export function CategoryManager() {
           </div>
           <div>
             <label htmlFor="cat-parent" className="block text-sm font-medium mb-1">Parent Category</label>
-            <select 
+            <select
               id="cat-parent"
               className="w-full border rounded px-3 py-2"
               value={formData.parentId}

@@ -23,14 +23,14 @@ export function ArticleEditor({ articleId }: { articleId: string }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
-  
+
   // Form state
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [excerpt, setExcerpt] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  
+
   // Categories for select
   const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
 
@@ -83,7 +83,7 @@ export function ArticleEditor({ articleId }: { articleId: string }) {
     try {
       setSaving(true);
       setError('');
-      
+
       const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
 
       if (isNew) {
@@ -159,12 +159,12 @@ export function ArticleEditor({ articleId }: { articleId: string }) {
     ArticleStatus.SUBMITTED_FOR_REVIEW,
     ArticleStatus.UNDER_REVIEW
   ].includes(article.status));
-  
+
   const isPublishedOrArchived = !!(article && [
     ArticleStatus.PUBLISHED,
     ArticleStatus.ARCHIVED
   ].includes(article.status));
-  
+
   const showEditWarning = article && [ArticleStatus.APPROVED, ArticleStatus.SCHEDULED].includes(article.status);
 
   if (loading) return <div className="p-4">Loading article...</div>;
@@ -197,7 +197,7 @@ export function ArticleEditor({ articleId }: { articleId: string }) {
       )}
 
       {!isNew && article && (
-        <WorkflowPanel 
+        <WorkflowPanel
           article={article}
           onSuccess={fetchArticle}
         />
@@ -218,7 +218,7 @@ export function ArticleEditor({ articleId }: { articleId: string }) {
                 disabled={isReview || isPublishedOrArchived}
               />
             </div>
-            
+
             <div>
               <label htmlFor="article-excerpt" className="block text-sm font-medium text-gray-700 mb-1">Excerpt</label>
               <textarea
@@ -283,7 +283,7 @@ export function ArticleEditor({ articleId }: { articleId: string }) {
 
         <div className="w-full md:w-80 space-y-6">
           {!isNew && article && (
-            <CoverPicker 
+            <CoverPicker
               articleId={articleId}
               expectedVersion={article.version}
               currentCoverId={article.coverMediaId}

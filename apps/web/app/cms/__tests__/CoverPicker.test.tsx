@@ -48,11 +48,11 @@ describe('CoverPicker', () => {
 
   it('triggers warning before mutation for APPROVED', async () => {
     await renderComponent({ status: ArticleStatus.APPROVED, userPermissions: [], showEditWarning: true });
-    
+
     await act(async () => {
       fireEvent.click(screen.getByText('Set Cover'));
     });
-    
+
     // Simulate setting cover
     mockGet.mockResolvedValue({ data: [{ id: 'media-1', originalFilename: 'test.jpg' }] });
     await act(async () => {
@@ -60,10 +60,10 @@ describe('CoverPicker', () => {
     });
     // This is tested via the mock implementation and the warning trigger
     // Instead of full integration, we'll verify the component responds to showEditWarning
-    
+
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(['dummy'], 'test.png', { type: 'image/png' });
-    
+
     mockPost.mockResolvedValue({ id: 'new-media-1' });
 
     await act(async () => {
@@ -78,14 +78,14 @@ describe('CoverPicker', () => {
 
   it('triggers warning before mutation for SCHEDULED', async () => {
     await renderComponent({ status: ArticleStatus.SCHEDULED, userPermissions: [], showEditWarning: true });
-    
+
     await act(async () => {
       fireEvent.click(screen.getByText('Set Cover'));
     });
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(['dummy'], 'test.png', { type: 'image/png' });
-    
+
     mockPost.mockResolvedValue({ id: 'new-media-1' });
 
     await act(async () => {
@@ -110,19 +110,19 @@ describe('CoverPicker', () => {
 
   it('sends expectedVersion on mutation', async () => {
     await renderComponent({ status: ArticleStatus.DRAFT, userPermissions: [], showEditWarning: false });
-    
+
     await act(async () => {
       fireEvent.click(screen.getByText('Set Cover'));
     });
-    
+
     mockGet.mockResolvedValueOnce({ data: [{ id: 'media-1', originalFilename: 'test.jpg' }] });
-    
+
     // Simulate picking an existing media
     // Mock the fetchMedia resolution
     await act(async () => {
       // Just simulate clicking the select button on media-1 when it appears
     });
-    
+
     // Test direct upload flow for simplicity of asserting patch
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(['dummy'], 'test.png', { type: 'image/png' });
@@ -146,13 +146,13 @@ describe('CoverPicker', () => {
 
   it('handles error gracefully', async () => {
     const alertMock = jest.spyOn(window, 'alert').mockImplementation(() => {});
-    
+
     await renderComponent({ status: ArticleStatus.DRAFT, userPermissions: [], showEditWarning: false });
-    
+
     await act(async () => {
       fireEvent.click(screen.getByText('Set Cover'));
     });
-    
+
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(['dummy'], 'test.png', { type: 'image/png' });
     mockPost.mockRejectedValue(new Error('Upload failed'));

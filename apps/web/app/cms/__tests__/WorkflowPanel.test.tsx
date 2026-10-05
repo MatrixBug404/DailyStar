@@ -68,7 +68,7 @@ describe('WorkflowPanel', () => {
 
   it('UNDER_REVIEW shows Approve, Request Changes, Reject', async () => {
     renderPanel(ArticleStatus.UNDER_REVIEW);
-    
+
     // Approve
     await act(async () => {
       fireEvent.click(screen.getByText('Approve'));
@@ -97,7 +97,7 @@ describe('WorkflowPanel', () => {
     renderPanel(ArticleStatus.SCHEDULED);
     expect(screen.queryByText('Schedule Publication')).not.toBeInTheDocument(); // No schedule creation UI
     expect(screen.getByText('Cancel Schedule')).toBeInTheDocument();
-    
+
     await act(async () => {
       fireEvent.click(screen.getByText('Cancel Schedule'));
     });
@@ -119,35 +119,35 @@ describe('WorkflowPanel', () => {
 
   it('request-changes comment modal enforces validation', async () => {
     renderPanel(ArticleStatus.UNDER_REVIEW);
-    
+
     await act(async () => {
       fireEvent.click(screen.getByText('Request Changes'));
     });
-    
+
     const input = screen.getByPlaceholderText('Why are you making this decision?') as HTMLTextAreaElement;
     expect(input).toHaveAttribute('maxLength', '1000');
-    
+
     const confirmBtn = screen.getByText('Confirm');
-    
+
     // Empty comment disables button
     expect(confirmBtn).toBeDisabled();
-    
+
     // Whitespace comment disables button
     await act(async () => {
       fireEvent.change(input, { target: { value: '   ' } });
     });
     expect(confirmBtn).toBeDisabled();
-    
+
     // Valid comment enables button, sends trimmed payload
     await act(async () => {
       fireEvent.change(input, { target: { value: '  Needs more detail  ' } });
     });
     expect(confirmBtn).not.toBeDisabled();
-    
+
     await act(async () => {
       fireEvent.click(confirmBtn);
     });
-    
+
     expect(mockPost).toHaveBeenCalledWith('/v1/articles/123/request-changes', {
       expectedVersion: 5,
       comment: 'Needs more detail'
@@ -156,29 +156,29 @@ describe('WorkflowPanel', () => {
 
   it('reject comment modal enforces validation', async () => {
     renderPanel(ArticleStatus.UNDER_REVIEW);
-    
+
     await act(async () => {
       fireEvent.click(screen.getByText('Reject'));
     });
-    
+
     const input = screen.getByPlaceholderText('Why are you making this decision?') as HTMLTextAreaElement;
     const confirmBtn = screen.getByText('Confirm');
-    
+
     // Whitespace comment disables button
     await act(async () => {
       fireEvent.change(input, { target: { value: '   ' } });
     });
     expect(confirmBtn).toBeDisabled();
-    
+
     // Valid comment
     await act(async () => {
       fireEvent.change(input, { target: { value: '  Too controversial  ' } });
     });
-    
+
     await act(async () => {
       fireEvent.click(confirmBtn);
     });
-    
+
     expect(mockPost).toHaveBeenCalledWith('/v1/articles/123/reject', {
       expectedVersion: 5,
       comment: 'Too controversial'

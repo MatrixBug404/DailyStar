@@ -22,7 +22,7 @@ describe('AuditLogPanel', () => {
     (useSession as jest.Mock).mockReturnValue({
       permissions: [],
     });
-    
+
     await act(async () => {
       render(<AuditLogPanel articleId="123" />);
     });
@@ -39,7 +39,7 @@ describe('AuditLogPanel', () => {
     mockGet.mockResolvedValueOnce([
       { id: 'log-1', createdAt: new Date().toISOString(), actorId: 'user-1', action: 'UPDATE_ARTICLE', metadata: { foo: 'bar' } }
     ]);
-    
+
     await act(async () => {
       render(<AuditLogPanel articleId="123" />);
     });

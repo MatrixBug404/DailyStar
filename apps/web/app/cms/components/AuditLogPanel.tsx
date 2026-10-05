@@ -8,14 +8,14 @@ export function AuditLogPanel({ articleId }: { articleId: string }) {
   const { get } = useCmsApi();
   const { permissions } = useSession();
   const canReadAudit = permissions.includes('article.read.any');
-  
+
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!canReadAudit) return;
-    
+
     let isMounted = true;
     setLoading(true);
     get<any[]>(`/v1/articles/${articleId}/audit`)
@@ -28,7 +28,7 @@ export function AuditLogPanel({ articleId }: { articleId: string }) {
       .finally(() => {
         if (isMounted) setLoading(false);
       });
-      
+
     return () => { isMounted = false; };
   }, [articleId, canReadAudit, get]);
 
