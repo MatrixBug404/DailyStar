@@ -1,14 +1,13 @@
 import React from 'react';
+import { ArticleList } from '../../components/ArticleList';
 
 /**
- * /cms/articles placeholder (D6).
- * D9 will implement the actual D3-backed list and filtering.
+ * /cms/articles
  */
 export default function CmsArticlesPage() {
   return (
     <main>
-      <h1 className="text-2xl font-bold">Articles</h1>
-      <p>Article list placeholder (D6).</p>
+      <ArticleList title="Articles" />
     </main>
   );
 }

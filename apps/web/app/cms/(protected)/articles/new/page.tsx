@@ -1,13 +1,13 @@
 import React from 'react';
+import { ArticleEditor } from '../../../components/ArticleEditor';
 
 /**
- * /cms/articles/new placeholder (D6).
+ * /cms/articles/new
  */
 export default function CmsNewArticlePage() {
   return (
     <main>
-      <h1 className="text-2xl font-bold">New Article</h1>
-      <p>Draft editor placeholder (D6).</p>
+      <ArticleEditor articleId="new" />
     </main>
   );
 }

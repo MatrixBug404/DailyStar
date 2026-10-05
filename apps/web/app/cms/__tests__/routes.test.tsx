@@ -13,8 +13,28 @@ import CmsReviewPage from '../(protected)/review/page';
 import CmsCategoriesPage from '../(protected)/categories/page';
 import { useSession } from '../session-provider';
 
+jest.mock('../components/ArticleList', () => ({
+  ArticleList: ({ title }: any) => <div>Mock ArticleList: {title}</div>
+}));
+jest.mock('../components/ArticleEditor', () => ({
+  ArticleEditor: ({ articleId }: any) => <div>Mock ArticleEditor: {articleId}</div>
+}));
+jest.mock('../components/CategoryManager', () => ({
+  CategoryManager: () => <div>Mock CategoryManager</div>
+}));
+
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: jest.fn() }),
+  useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
+}));
+
+jest.mock('../../../lib/cms-api', () => ({
+  useCmsApi: () => ({
+    get: jest.fn().mockResolvedValue([]),
+    post: jest.fn(),
+    patch: jest.fn(),
+    put: jest.fn(),
+    del: jest.fn()
+  })
 }));
 
 jest.mock('../session-provider', () => ({
@@ -22,6 +42,8 @@ jest.mock('../session-provider', () => ({
     status: 'authenticated',
     login: jest.fn(),
     logout: jest.fn(),
+    permissions: ['category.manage', 'article.read.any', 'article.approve', 'article.publish', 'article.archive'],
+    user: { id: 'test-user' }
   })),
   SessionProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -32,6 +54,8 @@ describe('D6 CMS Route Tree', () => {
       status: 'authenticated',
       login: jest.fn(),
       logout: jest.fn(),
+      permissions: ['category.manage', 'article.read.any'],
+      user: { id: 'test-user' }
     });
   });
   it('does NOT have apps/web/app/cms/page.tsx to avoid route collision', () => {
@@ -50,6 +74,8 @@ describe('D6 CMS Route Tree', () => {
         status: 'unauthenticated',
         login: jest.fn(),
         logout: jest.fn(),
+        permissions: [],
+        user: null
       });
       render(<CmsLoginPage />);
       expect(screen.getByText('CMS Login')).toBeInTheDocument();
@@ -68,30 +94,29 @@ describe('D6 CMS Route Tree', () => {
 
     it('renders CmsArticlesPage placeholder', () => {
       render(<CmsArticlesPage />);
-      expect(screen.getByText('Articles')).toBeInTheDocument();
+      expect(screen.getByText('Mock ArticleList: Articles')).toBeInTheDocument();
     });
 
-    it('renders CmsNewArticlePage placeholder', () => {
+    it('renders CmsNewArticlePage safely', () => {
       render(<CmsNewArticlePage />);
-      expect(screen.getByText('New Article')).toBeInTheDocument();
+      expect(screen.getByText('Mock ArticleEditor: new')).toBeInTheDocument();
     });
 
     it('renders CmsArticleEditorPage safely with params', async () => {
       const { container } = render(
         await CmsArticleEditorPage({ params: Promise.resolve({ id: '123' }) })
       );
-      expect(container).toHaveTextContent('Edit Article');
-      expect(container).toHaveTextContent('123');
+      expect(container).toHaveTextContent('Mock ArticleEditor: 123');
     });
 
     it('renders CmsReviewPage placeholder', () => {
       render(<CmsReviewPage />);
-      expect(screen.getByText('Review Queue')).toBeInTheDocument();
+      expect(screen.getByText('Mock ArticleList: Review Queue')).toBeInTheDocument();
     });
 
-    it('renders CmsCategoriesPage placeholder', () => {
+    it('renders CmsCategoriesPage safely', () => {
       render(<CmsCategoriesPage />);
-      expect(screen.getByText('Categories')).toBeInTheDocument();
+      expect(screen.getByText('Mock CategoryManager')).toBeInTheDocument();
     });
   });
 });

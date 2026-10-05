@@ -1,13 +1,13 @@
 import React from 'react';
+import { CategoryManager } from '../../components/CategoryManager';
 
 /**
- * /cms/categories placeholder (D6).
+ * /cms/categories
  */
 export default function CmsCategoriesPage() {
   return (
     <main>
-      <h1 className="text-2xl font-bold">Categories</h1>
-      <p>Category management placeholder (D6).</p>
+      <CategoryManager />
     </main>
   );
 }

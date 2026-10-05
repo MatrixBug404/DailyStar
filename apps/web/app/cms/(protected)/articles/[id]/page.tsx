@@ -1,8 +1,8 @@
 import React from 'react';
+import { ArticleEditor } from '../../../components/ArticleEditor';
 
 /**
- * /cms/articles/[id] placeholder (D6).
- * Renders the article ID dynamically.
+ * /cms/articles/[id]
  */
 export default async function CmsArticleEditorPage({
   params,
@@ -12,8 +12,7 @@ export default async function CmsArticleEditorPage({
   const resolvedParams = await params;
   return (
     <main>
-      <h1 className="text-2xl font-bold">Edit Article</h1>
-      <p>Editor placeholder for article ID: {resolvedParams.id} (D6).</p>
+      <ArticleEditor articleId={resolvedParams.id} />
     </main>
   );
 }
