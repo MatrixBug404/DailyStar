@@ -23,9 +23,9 @@ describe('Robots configuration', () => {
     expect(Array.isArray(res.rules) ? res.rules[0].allow : res.rules.allow).toBe('/');
   });
 
-  it('3. disallow = "/api/"', () => {
+  it('3. disallow = ["/api/", "/cms/"]', () => {
     const res = robots();
-    expect(Array.isArray(res.rules) ? res.rules[0].disallow : res.rules.disallow).toBe('/api/');
+    expect(Array.isArray(res.rules) ? res.rules[0].disallow : res.rules.disallow).toEqual(['/api/', '/cms/']);
   });
 
   it('4. sitemap derives from NEXT_PUBLIC_SITE_URL', () => {
