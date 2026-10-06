@@ -3,7 +3,7 @@ import { test as base } from '@playwright/test';
 const { prisma } = require('../../../api/src/database/client');
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const argon2 = require('argon2');
+const argon2 = require('../../../api/node_modules/argon2');
 
 const E2E_PASSWORD = 'Password123!';
 
