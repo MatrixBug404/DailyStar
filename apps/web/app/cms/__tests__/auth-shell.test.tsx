@@ -321,7 +321,6 @@ describe('D7 Auth Shell - Gating and Redirect Rules', () => {
       expect(ctx.status).toBe('unauthenticated');
       expect(ctx.accessToken).toBeNull();
     });
-  });
 
     it('H. context value is referentially stable across re-renders when auth state is unchanged', async () => {
       (global.fetch as jest.Mock).mockImplementation(async (url) => {
