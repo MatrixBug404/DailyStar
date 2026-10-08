@@ -322,4 +322,49 @@ describe('D7 Auth Shell - Gating and Redirect Rules', () => {
       expect(ctx.accessToken).toBeNull();
     });
   });
+
+    it('H. context value is referentially stable across re-renders when auth state is unchanged', async () => {
+      (global.fetch as jest.Mock).mockImplementation(async (url) => {
+        if (url.includes('/auth/refresh')) return { ok: true, json: async () => ({ accessToken: 'stable-tok' }) };
+        if (url.includes('/users/me')) return { ok: true, json: async () => ({ id: 'u5' }) };
+        return { ok: false };
+      });
+
+      const contextValues: any[] = [];
+      const TestConsumer = () => {
+        const ctx = useSession();
+        contextValues.push(ctx);
+        return null;
+      };
+
+      const Wrapper = () => {
+        const [count, setCount] = React.useState(0);
+        return (
+          <SessionProvider>
+            <button onClick={() => setCount(c => c + 1)}>Rerender</button>
+            <TestConsumer />
+          </SessionProvider>
+        );
+      };
+
+      await act(async () => {
+        render(<Wrapper />);
+      });
+
+      const initialLength = contextValues.length;
+      const stableContext = contextValues[initialLength - 1];
+
+      await act(async () => {
+        screen.getByText('Rerender').click();
+      });
+
+      expect(contextValues.length).toBeGreaterThan(initialLength);
+      const afterRerenderContext = contextValues[contextValues.length - 1];
+      
+      expect(afterRerenderContext).toBe(stableContext);
+      expect(afterRerenderContext.refresh).toBe(stableContext.refresh);
+      expect(afterRerenderContext.login).toBe(stableContext.login);
+      expect(afterRerenderContext.logout).toBe(stableContext.logout);
+    });
+  });
 });

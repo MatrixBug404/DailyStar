@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { SafeUser } from '@dailystar/types';
 import { API_BASE } from '../../lib/api';
 
@@ -27,7 +27,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const hasRefreshed = useRef(false);
 
-  const fetchMe = async (token: string): Promise<SafeUser | null> => {
+  const fetchMe = useCallback(async (token: string): Promise<SafeUser | null> => {
     try {
       const res = await fetch(`${AUTH_API_BASE}/users/me`, {
         method: 'GET',
@@ -43,9 +43,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return null;
     }
-  };
+  }, []);
 
-  const refresh = async (): Promise<string | null> => {
+  const refresh = useCallback(async (): Promise<string | null> => {
     try {
       const res = await fetch(`${AUTH_API_BASE}/auth/refresh`, {
         method: 'POST',
@@ -76,17 +76,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setPermissions([]);
     setStatus('unauthenticated');
     return null;
-  };
+  }, [fetchMe]);
 
   useEffect(() => {
     if (!hasRefreshed.current) {
       hasRefreshed.current = true;
-      refresh();
+      void refresh();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refresh]);
 
-  const login = async (email: string, password: string): Promise<void> => {
+  const login = useCallback(async (email: string, password: string): Promise<void> => {
     setStatus('loading');
     try {
       const res = await fetch(`${AUTH_API_BASE}/auth/login`, {
@@ -128,9 +127,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setStatus('unauthenticated');
       throw error;
     }
-  };
+  }, [fetchMe]);
 
-  const logout = async (): Promise<void> => {
+  const logout = useCallback(async (): Promise<void> => {
     try {
       await fetch(`${AUTH_API_BASE}/auth/logout`, {
         method: 'POST',
@@ -143,9 +142,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setRoles([]);
     setPermissions([]);
     setStatus('unauthenticated');
-  };
+  }, []);
 
-  const value: SessionContextValue = {
+  const value = useMemo<SessionContextValue>(() => ({
     user,
     roles,
     permissions,
@@ -154,7 +153,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     login,
     logout,
     refresh,
-  };
+  }), [user, roles, permissions, accessToken, status, login, logout, refresh]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
