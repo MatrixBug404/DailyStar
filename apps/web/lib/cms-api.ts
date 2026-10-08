@@ -1,6 +1,7 @@
 import { ApiErrorResponse } from '@dailystar/types';
 import { API_BASE } from './api';
 import { useSession } from '../app/cms/session-provider';
+import { useMemo } from 'react';
 
 export class CmsApiError extends Error {
   readonly status: number;
@@ -140,48 +141,50 @@ export async function cmsFetch<T = any>(
 export function useCmsApi() {
   const session = useSession();
 
-  const sessionRef: CmsSessionRef = {
-    accessToken: session.accessToken,
-    refresh: session.refresh,
-  };
+  return useMemo(() => {
+    const sessionRef: CmsSessionRef = {
+      accessToken: session.accessToken,
+      refresh: session.refresh,
+    };
 
-  const fetchApi = <T = any>(path: string, init?: RequestInit): Promise<T> => {
-    return cmsFetch<T>(path, init, sessionRef);
-  };
+    const fetchApi = <T = any>(path: string, init?: RequestInit): Promise<T> => {
+      return cmsFetch<T>(path, init, sessionRef);
+    };
 
-  return {
-    fetchApi,
-    get: <T = any>(path: string, init?: RequestInit): Promise<T> =>
-      fetchApi<T>(path, { ...init, method: 'GET' }),
-    post: <T = any>(path: string, body?: any, init?: RequestInit): Promise<T> => {
-      const headers = new Headers(init?.headers);
-      if (body !== undefined && !headers.has('Content-Type')) {
-        if (!(body instanceof FormData) && typeof body !== 'string') {
-          headers.set('Content-Type', 'application/json');
+    return {
+      fetchApi,
+      get: <T = any>(path: string, init?: RequestInit): Promise<T> =>
+        fetchApi<T>(path, { ...init, method: 'GET' }),
+      post: <T = any>(path: string, body?: any, init?: RequestInit): Promise<T> => {
+        const headers = new Headers(init?.headers);
+        if (body !== undefined && !headers.has('Content-Type')) {
+          if (!(body instanceof FormData) && typeof body !== 'string') {
+            headers.set('Content-Type', 'application/json');
+          }
         }
-      }
-      return fetchApi<T>(path, {
-        ...init,
-        method: 'POST',
-        headers,
-        body: body !== undefined ? (body instanceof FormData || typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
-      });
-    },
-    patch: <T = any>(path: string, body?: any, init?: RequestInit): Promise<T> => {
-      const headers = new Headers(init?.headers);
-      if (body !== undefined && !headers.has('Content-Type')) {
-        if (!(body instanceof FormData) && typeof body !== 'string') {
-          headers.set('Content-Type', 'application/json');
+        return fetchApi<T>(path, {
+          ...init,
+          method: 'POST',
+          headers,
+          body: body !== undefined ? (body instanceof FormData || typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
+        });
+      },
+      patch: <T = any>(path: string, body?: any, init?: RequestInit): Promise<T> => {
+        const headers = new Headers(init?.headers);
+        if (body !== undefined && !headers.has('Content-Type')) {
+          if (!(body instanceof FormData) && typeof body !== 'string') {
+            headers.set('Content-Type', 'application/json');
+          }
         }
-      }
-      return fetchApi<T>(path, {
-        ...init,
-        method: 'PATCH',
-        headers,
-        body: body !== undefined ? (body instanceof FormData || typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
-      });
-    },
-    del: <T = any>(path: string, init?: RequestInit): Promise<T> =>
-      fetchApi<T>(path, { ...init, method: 'DELETE' }),
-  };
+        return fetchApi<T>(path, {
+          ...init,
+          method: 'PATCH',
+          headers,
+          body: body !== undefined ? (body instanceof FormData || typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
+        });
+      },
+      del: <T = any>(path: string, init?: RequestInit): Promise<T> =>
+        fetchApi<T>(path, { ...init, method: 'DELETE' }),
+    };
+  }, [session.accessToken, session.refresh]);
 }

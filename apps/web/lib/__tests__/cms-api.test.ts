@@ -292,5 +292,42 @@ describe('cms-api', () => {
       try { await result.current.get('/error'); } catch (e) { err = e; }
       expect(err.message).not.toContain('hook-token');
     });
+
+    it('useCmsApi returns the same object reference across re-renders when session is stable', () => {
+      const mockSession = { accessToken: 'stable-token', refresh: jest.fn() };
+      (useSession as jest.Mock).mockReturnValue(mockSession);
+      const { result, rerender } = renderHook(() => useCmsApi());
+      const first = result.current;
+      rerender();
+      expect(result.current).toBe(first);
+    });
+
+    it('useCmsApi recreates API object and uses new token when token changes', async () => {
+      const mockSession = { accessToken: 'old-token', refresh: jest.fn() };
+      (useSession as jest.Mock).mockReturnValue(mockSession);
+      const { result, rerender } = renderHook(() => useCmsApi());
+      const first = result.current;
+
+      mockSession.accessToken = 'new-token';
+      rerender();
+
+      expect(result.current).not.toBe(first);
+
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 204 });
+      await result.current.get('/test');
+      expect(mockFetch.mock.calls[0][1].headers.get('Authorization')).toBe('Bearer new-token');
+    });
+
+    it('useCmsApi recreates API object when refresh changes', () => {
+      const mockSession = { accessToken: 'token', refresh: jest.fn() };
+      (useSession as jest.Mock).mockReturnValue(mockSession);
+      const { result, rerender } = renderHook(() => useCmsApi());
+      const first = result.current;
+
+      mockSession.refresh = jest.fn();
+      rerender();
+
+      expect(result.current).not.toBe(first);
+    });
   });
 });

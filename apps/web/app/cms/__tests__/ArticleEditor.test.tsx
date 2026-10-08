@@ -7,7 +7,10 @@ import { useSession } from '../session-provider';
 import { ArticleStatus } from '@dailystar/types';
 import { useRouter } from 'next/navigation';
 
-jest.mock('../../../lib/cms-api');
+jest.mock('../../../lib/cms-api', () => ({
+  ...jest.requireActual('../../../lib/cms-api'),
+  useCmsApi: jest.fn(),
+}));
 jest.mock('../session-provider');
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -264,5 +267,64 @@ describe('ArticleEditor', () => {
     });
 
     expect(mockPatch).toHaveBeenCalledWith('/v1/articles/123', expect.objectContaining({ expectedVersion: 1 }));
+  });
+
+  it('adds and removes beforeunload listener based on dirty state', async () => {
+    const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+    const removeEventListenerSpy = jest.spyOn(window, 'removeEventListener');
+
+    const { unmount } = await renderComponent('new');
+
+    // Make it dirty
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Dirty Title' } });
+    });
+
+    expect(addEventListenerSpy).toHaveBeenCalledWith('beforeunload', expect.any(Function));
+    // Find the latest registered listener
+    const calls = addEventListenerSpy.mock.calls.filter(call => call[0] === 'beforeunload');
+    const handleBeforeUnload = calls[calls.length - 1][1] as EventListener;
+
+    const event = new Event('beforeunload');
+    Object.defineProperty(event, 'returnValue', { writable: true, value: undefined });
+    event.preventDefault = jest.fn();
+    handleBeforeUnload(event);
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect((event as any).returnValue).toBe('');
+
+    // Make it clean again by emptying the title
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: '' } });
+    });
+
+    // Should remove the previous listener
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('beforeunload', expect.any(Function));
+
+    unmount();
+    addEventListenerSpy.mockRestore();
+    removeEventListenerSpy.mockRestore();
+  });
+
+  it('mount fetch effect executes exactly once when CMS API object is stable', async () => {
+    mockGet.mockClear();
+    
+    const { rerender } = render(<ArticleEditor articleId="123" />);
+    
+    await act(async () => {
+      // let fetches resolve
+      await new Promise(r => setTimeout(r, 0));
+    });
+
+    // 1 call for categories, 1 for article
+    expect(mockGet).toHaveBeenCalledTimes(2);
+
+    // Force a re-render to ensure effect doesn't run again due to unstable callbacks
+    await act(async () => {
+      rerender(<ArticleEditor articleId="123" />);
+    });
+
+    // Count should still be 2
+    expect(mockGet).toHaveBeenCalledTimes(2);
   });
 });
