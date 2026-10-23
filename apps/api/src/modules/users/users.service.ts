@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient, User } from '../../database/generated/prisma';
+import { User } from '../../database/generated/prisma';
+import { prisma } from '../../database/client';
 import { PermissionResolverService } from '../rbac/permission-resolver.service';
 import { UnauthorizedException, NotFoundException } from '@nestjs/common';
-
-const prisma = new PrismaClient();
 
 @Injectable()
 export class UsersService {

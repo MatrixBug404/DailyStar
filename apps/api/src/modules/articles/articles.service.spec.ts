@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ArticlesService } from './articles.service';
 import { RevisionsService } from './revisions.service';
@@ -7,6 +8,7 @@ import { WorkflowService } from '../workflow/workflow.service';
 import { MediaService } from '../media/media.service';
 
 const mockTx = {
+  $queryRaw: jest.fn(),
   article: {
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -36,6 +38,8 @@ describe('ArticlesService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockTx.$queryRaw.mockReset();
+    mockTx.article.update.mockReset();
     (prisma.$transaction as jest.Mock).mockImplementation(async (arg) => {
       if (Array.isArray(arg)) {
         return Promise.all(arg);
@@ -195,6 +199,73 @@ describe('ArticlesService', () => {
           orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
         }),
       );
+    });
+  });
+
+  describe('remove (workflow-owned scheduled deletion policy)', () => {
+    const user = { sub: 'user-1', permissions: [] };
+
+    it('rejects deleting a SCHEDULED article without mutating it', async () => {
+      mockTx.$queryRaw.mockResolvedValueOnce([
+        {
+          id: 'art-1',
+          primaryAuthorId: 'user-1',
+          status: 'SCHEDULED',
+          deletedAt: null,
+        },
+      ]);
+
+      await expect(service.remove('art-1', user)).rejects.toThrow(ConflictException);
+      expect(mockTx.$queryRaw).toHaveBeenCalled();
+      expect(mockTx.article.update).not.toHaveBeenCalled();
+    });
+
+    it('soft-deletes a non-scheduled article after acquiring the row lock', async () => {
+      mockTx.$queryRaw.mockResolvedValueOnce([
+        {
+          id: 'art-1',
+          primaryAuthorId: 'user-1',
+          status: 'DRAFT',
+          deletedAt: null,
+        },
+      ]);
+      mockTx.article.update.mockResolvedValue({ id: 'art-1', deletedAt: new Date() });
+
+      await service.remove('art-1', user);
+
+      expect(mockTx.article.update).toHaveBeenCalledWith({
+        where: { id: 'art-1' },
+        data: {
+          deletedAt: expect.any(Date),
+          version: { increment: 1 },
+          updatedBy: 'user-1',
+        },
+      });
+    });
+
+    it('returns not found for an already deleted or missing article', async () => {
+      mockTx.$queryRaw.mockResolvedValueOnce([]);
+
+      await expect(service.remove('art-missing', user)).rejects.toThrow('Article not found');
+      expect(mockTx.article.update).not.toHaveBeenCalled();
+    });
+
+    it('treats a concurrently scheduled article as a conflict, not a deletion', async () => {
+      // The lock serializes the racing scheduling transaction; remove observes
+      // SCHEDULED and must refuse rather than deleting the new intent.
+      mockTx.$queryRaw.mockResolvedValueOnce([
+        {
+          id: 'art-1',
+          primaryAuthorId: 'user-1',
+          status: 'SCHEDULED',
+          deletedAt: null,
+        },
+      ]);
+
+      await expect(service.remove('art-1', user)).rejects.toThrow(
+        'Cancel the publication schedule before deleting a scheduled article',
+      );
+      expect(mockTx.article.update).not.toHaveBeenCalled();
     });
   });
 });

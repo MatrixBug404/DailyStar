@@ -224,8 +224,8 @@ export class ArticlesService {
         slug = await this.generateUniqueSlug(title, tx);
       }
 
-      // Auto-revert to DRAFT if APPROVED or SCHEDULED (Pattern A)
-      if (current.status === 'APPROVED' || current.status === 'SCHEDULED') {
+      // Auto-revert to DRAFT if APPROVED, SCHEDULED, or FAILED_TO_PUBLISH (Pattern A)
+      if (current.status === 'APPROVED' || current.status === 'SCHEDULED' || current.status === 'FAILED_TO_PUBLISH') {
         await this.workflowService.revertToDraft(id, user, tx);
       }
 
@@ -248,16 +248,36 @@ export class ArticlesService {
   }
 
   async remove(id: string, user: any) {
-    const article = await prisma.article.findUnique({ where: { id } });
-    if (!article || article.deletedAt) throw new NotFoundException('Article not found');
+    return prisma.$transaction(async (tx) => {
+      // Lock the Article row so a concurrent scheduling transaction cannot turn
+      // an already-approved deletion target into a SCHEDULED article afterwards.
+      const rows = await tx.$queryRaw<any[]>`
+        SELECT "id", "primaryAuthorId", "status", "deletedAt"
+        FROM "articles"
+        WHERE "id" = ${id}
+        FOR UPDATE;
+      `;
+      const article = rows?.[0];
 
-    if (article.primaryAuthorId !== user.sub && !user.permissions.includes('article.delete.any')) {
-      throw new NotFoundException('Article not found');
-    }
+      if (!article || article.deletedAt) throw new NotFoundException('Article not found');
 
-    await prisma.article.update({
-      where: { id },
-      data: { deletedAt: new Date(), version: { increment: 1 }, updatedBy: user.sub },
+      if (
+        article.primaryAuthorId !== user.sub &&
+        !user.permissions.includes('article.delete.any')
+      ) {
+        throw new NotFoundException('Article not found');
+      }
+
+      if (article.status === 'SCHEDULED') {
+        throw new ConflictException(
+          'Cancel the publication schedule before deleting a scheduled article',
+        );
+      }
+
+      await tx.article.update({
+        where: { id },
+        data: { deletedAt: new Date(), version: { increment: 1 }, updatedBy: user.sub },
+      });
     });
   }
 
@@ -310,7 +330,11 @@ export class ArticlesService {
         await this.mediaService.validateMediaForCover(dto.mediaId, tx);
       }
 
-      if (article.status === 'APPROVED' || article.status === 'SCHEDULED') {
+      if (
+        article.status === 'APPROVED' ||
+        article.status === 'SCHEDULED' ||
+        article.status === 'FAILED_TO_PUBLISH'
+      ) {
         await this.workflowService.revertToDraft(id, user, tx);
       }
 

@@ -29,6 +29,7 @@ describe('Workflow & Concurrency E2E (Phase 3)', () => {
     await app.init();
 
     await prisma.auditLog.deleteMany();
+    await prisma.publicationSchedule.deleteMany();
     await prisma.articleRevision.deleteMany();
     await prisma.article.deleteMany();
 

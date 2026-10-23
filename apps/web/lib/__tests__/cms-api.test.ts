@@ -211,7 +211,7 @@ describe('cms-api', () => {
       // Test that promise clears and later 401 can refresh again
       mockFetch.mockResolvedValueOnce({ ok: false, status: 401 })
       session.refresh.mockResolvedValueOnce('newer-token');
-      try { await cmsFetch('/t3', {}, session); } catch(e) {}
+      try { await cmsFetch('/t3', {}, session); } catch { /* expected */ }
       expect(session.refresh).toHaveBeenCalledTimes(2);
     });
   });

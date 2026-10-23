@@ -27,6 +27,7 @@ describe('ArticlesCore (e2e)', () => {
     );
     await app.init();
 
+    await prisma.publicationSchedule.deleteMany();
     await prisma.articleRevision.deleteMany();
     await prisma.article.deleteMany();
     await prisma.userRole.deleteMany({

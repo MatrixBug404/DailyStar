@@ -17,8 +17,10 @@ export function WorkflowPanel({ article, onSuccess }: WorkflowPanelProps) {
   const { permissions, user } = useSession();
 
   const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [actionWithComment, setActionWithComment] = useState<string>('');
   const [commentText, setCommentText] = useState('');
+  const [scheduledDate, setScheduledDate] = useState('');
 
   const handleAction = async (action: string, payload: any = {}) => {
     try {
@@ -103,6 +105,13 @@ export function WorkflowPanel({ article, onSuccess }: WorkflowPanelProps) {
         </Button>
       );
     }
+    if (permissions.includes('article.schedule')) {
+      actions.push(
+        <Button key="schedule" onClick={() => setScheduleModalOpen(true)} className="mr-2" variant="secondary">
+          Schedule...
+        </Button>
+      );
+    }
   }
 
   if (article.status === ArticleStatus.SCHEDULED) {
@@ -123,6 +132,14 @@ export function WorkflowPanel({ article, onSuccess }: WorkflowPanelProps) {
         </Button>
       );
     }
+  }
+
+  if (article.status === ArticleStatus.FAILED_TO_PUBLISH) {
+    actions.push(
+      <Button key="reopen" onClick={() => handleAction('reopen')} className="mr-2" variant="secondary">
+        Reopen as Draft
+      </Button>
+    );
   }
 
   if (article.status === ArticleStatus.ARCHIVED) {
@@ -164,6 +181,32 @@ export function WorkflowPanel({ article, onSuccess }: WorkflowPanelProps) {
             handleAction(actionWithComment, { comment: trimmed });
           }}>
             Confirm
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={scheduleModalOpen} onClose={() => setScheduleModalOpen(false)} title="Schedule Publication">
+        <div className="py-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled Date & Time (Local Time)</label>
+          <input
+            type="datetime-local"
+            className="w-full border rounded px-4 py-2"
+            value={scheduledDate}
+            onChange={e => setScheduledDate(e.target.value)}
+          />
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setScheduleModalOpen(false)}>Cancel</Button>
+          <Button variant="primary" disabled={!scheduledDate} onClick={() => {
+            const parsed = new Date(scheduledDate);
+            if (isNaN(parsed.getTime()) || parsed <= new Date()) {
+              alert('Please select a valid future date/time.');
+              return;
+            }
+            setScheduleModalOpen(false);
+            handleAction('schedule', { scheduledFor: parsed.toISOString() });
+          }}>
+            Confirm Schedule
           </Button>
         </div>
       </Modal>

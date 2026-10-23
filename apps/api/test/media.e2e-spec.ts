@@ -62,6 +62,7 @@ describe('MediaController (e2e)', () => {
     await prisma.articleTag.deleteMany();
     await prisma.tag.deleteMany();
     await prisma.auditLog.deleteMany();
+    await prisma.publicationSchedule.deleteMany();
     await prisma.articleRevision.deleteMany();
     await prisma.article.deleteMany();
     await prisma.media.deleteMany();
@@ -679,6 +680,7 @@ describe('MediaController (e2e)', () => {
     }
 
     await prisma.auditLog.deleteMany();
+    await prisma.publicationSchedule.deleteMany();
     await prisma.articleRevision.deleteMany();
     await prisma.article.deleteMany();
     await prisma.media.deleteMany();

@@ -22,9 +22,11 @@ describe('Public API (e2e)', () => {
     );
     await app.init();
 
+    await prisma.publicationSchedule.deleteMany();
     await prisma.articleRevision.deleteMany();
     await prisma.articleTag.deleteMany();
     await prisma.article.deleteMany();
+    await prisma.media.deleteMany();
     await prisma.category.deleteMany();
     await prisma.tag.deleteMany();
     await prisma.authorProfile.deleteMany();
@@ -378,7 +380,10 @@ describe('Public API (e2e)', () => {
 
   it('/v1/public/articles/:slug/cover (GET) - PB-02 Cover endpoint rate limits after 100 requests', async () => {
     const secret = process.env.PUBLIC_COVER_PROXY_TRUST_SECRET || 'test_secret_must_be_32_characters_long!';
-    const ip = '203.0.113.100';
+    // Unique IPv6 client address under the 2001:db8::/32 documentation prefix so
+    // the Redis sliding-window key (rl:cover:<ip>, 60s) is fresh per execution.
+    const id = crypto.randomUUID().replace(/-/g, '');
+    const ip = `2001:db8:${id.slice(0, 4)}:${id.slice(4, 8)}:${id.slice(8, 12)}:${id.slice(12, 16)}:${id.slice(16, 20)}:${id.slice(20, 24)}`;
     const signature = crypto.createHmac('sha256', secret).update(ip).digest('hex');
 
     // 100 successful requests (should resolve to a 302 redirect for the presigned url)
@@ -487,5 +492,9 @@ describe('Public API (e2e)', () => {
     for (const article of res.body.data) {
       expect(article.category.slug).toBe('cat1');
     }
+  });
+
+  afterAll(async () => {
+    await app.close();
   });
 });

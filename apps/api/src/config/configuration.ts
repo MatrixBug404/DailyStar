@@ -19,6 +19,11 @@ export default () => {
     throw new Error('PUBLIC_COVER_PROXY_TRUST_SECRET is mandatory and must be at least 32 characters long');
   }
 
+  const configuredRecoveryMaxAttempts = parseInt(
+    process.env.SCHEDULING_RECOVERY_MAX_ATTEMPTS ?? '3',
+    10,
+  );
+
   return {
     /** Application runtime environment */
     nodeEnv: process.env.NODE_ENV ?? 'local',
@@ -39,6 +44,19 @@ export default () => {
       host: process.env.REDIS_HOST ?? 'localhost',
       port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
       password: process.env.REDIS_PASSWORD ?? undefined,
+    },
+
+    /** Scheduled publishing recovery policy */
+    scheduling: {
+      /**
+       * Maximum number of overdue missing/completed-job repairs the safety
+       * sweep will perform for one PublicationSchedule before invoking the
+       * state-aware terminal-failure path.
+       */
+      recoveryMaxAttempts:
+        Number.isFinite(configuredRecoveryMaxAttempts) && configuredRecoveryMaxAttempts > 0
+          ? configuredRecoveryMaxAttempts
+          : 3,
     },
 
     /** MinIO / S3-compatible object storage */

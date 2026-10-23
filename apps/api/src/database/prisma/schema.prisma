@@ -29,35 +29,36 @@ datasource db {
 // ─── Phase 1: Identity & RBAC Models ─────────────────────────────────────────
 
 model User {
-  id              String           @id @default(uuid())
-  email           String           @unique
-  passwordHash    String
-  displayName     String?
-  isActive        Boolean          @default(true)
-  tokenVersion    Int              @default(1)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String?
+  isActive     Boolean  @default(true)
+  tokenVersion Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  roles           UserRole[]
-  refreshSessions RefreshSession[]
-  articlesAuthored Article[]         @relation("ArticlePrimaryAuthor")
-  articlesCreated  Article[]         @relation("ArticleCreator")
-  articlesUpdated  Article[]         @relation("ArticleUpdater")
-  articlesReviewed Article[]         @relation("ArticleReviewer")
-  revisions        ArticleRevision[] @relation("ArticleRevisionAuthor")
-  authorProfile    AuthorProfile?
-  auditLogs        AuditLog[]        @relation("AuditLogActor")
-  uploadedMedia    Media[]           @relation("MediaUploadedBy")
+  roles                UserRole[]
+  refreshSessions      RefreshSession[]
+  articlesAuthored     Article[]             @relation("ArticlePrimaryAuthor")
+  articlesCreated      Article[]             @relation("ArticleCreator")
+  articlesUpdated      Article[]             @relation("ArticleUpdater")
+  articlesReviewed     Article[]             @relation("ArticleReviewer")
+  revisions            ArticleRevision[]     @relation("ArticleRevisionAuthor")
+  authorProfile        AuthorProfile?
+  auditLogs            AuditLog[]            @relation("AuditLogActor")
+  uploadedMedia        Media[]               @relation("MediaUploadedBy")
+  publicationSchedules PublicationSchedule[] @relation("PublicationScheduledBy")
 
   @@map("users")
 }
 
 model Role {
-  id          String           @id @default(uuid())
-  name        String           @unique // e.g. 'author', 'editor', 'admin'
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g. 'author', 'editor', 'admin'
   description String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   permissions RolePermission[]
   users       UserRole[]
@@ -66,13 +67,13 @@ model Role {
 }
 
 model Permission {
-  id          String           @id @default(uuid())
-  name        String           @unique // e.g. 'article:create', 'user:manage'
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g. 'article:create', 'user:manage'
   description String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  roles       RolePermission[]
+  roles RolePermission[]
 
   @@map("permissions")
 }
@@ -102,7 +103,7 @@ model UserRole {
 model RefreshSession {
   id        String    @id @default(uuid())
   userId    String
-  tokenHash String    // Argon2 hash of the opaque token
+  tokenHash String // Argon2 hash of the opaque token
   expiresAt DateTime
   createdAt DateTime  @default(now())
   revokedAt DateTime? // Instead of deleting, mark as revoked
@@ -139,10 +140,10 @@ enum ArticleStatus {
 }
 
 model Article {
-  id                String            @id @default(uuid())
-  slug              String            @unique
-  status            ArticleStatus     @default(DRAFT)
-  primaryAuthorId   String
+  id                         String        @id @default(uuid())
+  slug                       String        @unique
+  status                     ArticleStatus @default(DRAFT)
+  primaryAuthorId            String
   categoryId                 String?
   currentRevisionId          String?
   currentPublishedRevisionId String?
@@ -150,45 +151,46 @@ model Article {
   reviewerId                 String?
   publishedAt                DateTime?
   scheduledFor               DateTime?
-  version                    Int               @default(1)
-  createdAt                  DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  deletedAt         DateTime?
-  createdBy         String
-  updatedBy         String?
+  version                    Int           @default(1)
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime      @updatedAt
+  deletedAt                  DateTime?
+  createdBy                  String
+  updatedBy                  String?
 
-  primaryAuthor              User              @relation("ArticlePrimaryAuthor", fields: [primaryAuthorId], references: [id])
-  creator                    User              @relation("ArticleCreator", fields: [createdBy], references: [id])
-  updater                    User?             @relation("ArticleUpdater", fields: [updatedBy], references: [id])
-  reviewer                   User?             @relation("ArticleReviewer", fields: [reviewerId], references: [id])
-  category                   Category?         @relation(fields: [categoryId], references: [id])
-  currentRevision            ArticleRevision?  @relation("ArticleCurrentRevision", fields: [currentRevisionId], references: [id])
-  currentPublishedRevision   ArticleRevision?  @relation("ArticleCurrentPublishedRevision", fields: [currentPublishedRevisionId], references: [id])
-  approvedRevision           ArticleRevision?  @relation("ArticleApprovedRevision", fields: [approvedRevisionId], references: [id])
-  
-  revisions         ArticleRevision[] @relation("ArticleRevisions")
-  tags              ArticleTag[]
+  primaryAuthor            User             @relation("ArticlePrimaryAuthor", fields: [primaryAuthorId], references: [id])
+  creator                  User             @relation("ArticleCreator", fields: [createdBy], references: [id])
+  updater                  User?            @relation("ArticleUpdater", fields: [updatedBy], references: [id])
+  reviewer                 User?            @relation("ArticleReviewer", fields: [reviewerId], references: [id])
+  category                 Category?        @relation(fields: [categoryId], references: [id])
+  currentRevision          ArticleRevision? @relation("ArticleCurrentRevision", fields: [currentRevisionId], references: [id])
+  currentPublishedRevision ArticleRevision? @relation("ArticleCurrentPublishedRevision", fields: [currentPublishedRevisionId], references: [id])
+  approvedRevision         ArticleRevision? @relation("ArticleApprovedRevision", fields: [approvedRevisionId], references: [id])
 
-  coverMediaId      String?
-  coverMedia        Media?    @relation("ArticleCoverMedia", fields: [coverMediaId], references: [id], onDelete: NoAction)
+  revisions ArticleRevision[] @relation("ArticleRevisions")
+  tags      ArticleTag[]
+
+  coverMediaId String?
+  coverMedia   Media?  @relation("ArticleCoverMedia", fields: [coverMediaId], references: [id], onDelete: NoAction)
+
+  publicationSchedules PublicationSchedule[] @relation("ArticlePublicationSchedules")
 
   @@index([primaryAuthorId])
   @@index([categoryId])
   @@index([status])
   @@index([coverMediaId])
-  
   @@map("articles")
 }
 
 model ArticleRevision {
-  id              String   @id @default(uuid())
-  articleId       String
-  authorId        String
-  revisionNumber  Int
-  title           String
-  body            String   @db.Text
-  excerpt         String?
-  createdAt       DateTime @default(now())
+  id             String   @id @default(uuid())
+  articleId      String
+  authorId       String
+  revisionNumber Int
+  title          String
+  body           String   @db.Text
+  excerpt        String?
+  createdAt      DateTime @default(now())
 
   // Phase 5: Full-text search vector.
   // PostgreSQL populates this using GENERATED ALWAYS AS ... STORED.
@@ -196,18 +198,18 @@ model ArticleRevision {
   // All FTS queries use parameterized $queryRaw.
   // Declared nullable only because Prisma requires Unsupported columns
   // to be nullable; the DB column itself is never NULL.
-  searchVector    Unsupported("tsvector")?
+  searchVector Unsupported("tsvector")?
 
-  article         Article  @relation("ArticleRevisions", fields: [articleId], references: [id], onDelete: Cascade)
-  author          User     @relation("ArticleRevisionAuthor", fields: [authorId], references: [id])
-  
-  currentForArticles          Article[] @relation("ArticleCurrentRevision")
-  currentPublishedForArticles Article[] @relation("ArticleCurrentPublishedRevision")
-  approvedForArticles         Article[] @relation("ArticleApprovedRevision")
+  article Article @relation("ArticleRevisions", fields: [articleId], references: [id], onDelete: Cascade)
+  author  User    @relation("ArticleRevisionAuthor", fields: [authorId], references: [id])
+
+  currentForArticles          Article[]             @relation("ArticleCurrentRevision")
+  currentPublishedForArticles Article[]             @relation("ArticleCurrentPublishedRevision")
+  approvedForArticles         Article[]             @relation("ArticleApprovedRevision")
+  publicationSchedules        PublicationSchedule[] @relation("PublicationScheduleApprovedRevision")
 
   @@unique([articleId, revisionNumber])
   @@index([articleId])
-  
   @@map("article_revisions")
 }
 
@@ -220,22 +222,22 @@ model AuthorProfile {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("author_profiles")
 }
 
 model Category {
-  id        String     @id @default(uuid())
+  id        String   @id @default(uuid())
   name      String
-  slug      String     @unique
+  slug      String   @unique
   parentId  String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children  Category[] @relation("CategoryHierarchy")
-  articles  Article[]
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+  articles Article[]
 
   @@index([parentId])
   @@map("categories")
@@ -273,12 +275,11 @@ model AuditLog {
   metadata    Json?
   createdAt   DateTime @default(now())
 
-  actor       User?    @relation("AuditLogActor", fields: [actorId], references: [id])
+  actor User? @relation("AuditLogActor", fields: [actorId], references: [id])
 
   @@index([entityType, entityId])
   @@index([actorId])
   @@index([action])
-  
   @@map("audit_logs")
 }
 
@@ -307,4 +308,39 @@ model Media {
   @@index([status])
   @@index([sha256Checksum])
   @@map("media")
+}
+
+// ─── Phase 7: Scheduling Models ──────────────────────────────────────────────
+
+enum PublicationScheduleStatus {
+  PENDING
+  EXECUTED
+  CANCELLED
+  FAILED
+}
+
+model PublicationSchedule {
+  id                     String                    @id @default(uuid())
+  articleId              String
+  scheduledFor           DateTime
+  status                 PublicationScheduleStatus @default(PENDING)
+  /// Scheduler-recovery attempts: overdue missing/completed-job repairs performed
+  /// by the safety sweep. This is NOT BullMQ's execution-attempt counter.
+  attempts               Int                       @default(0)
+  lastError              String?                   @db.Text
+  scheduledById          String
+  version                Int                       @default(1)
+  expectedArticleVersion Int
+  approvedRevisionId     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  article          Article         @relation("ArticlePublicationSchedules", fields: [articleId], references: [id], onDelete: Cascade)
+  scheduledBy      User            @relation("PublicationScheduledBy", fields: [scheduledById], references: [id])
+  approvedRevision ArticleRevision @relation("PublicationScheduleApprovedRevision", fields: [approvedRevisionId], references: [id])
+
+  @@index([status, scheduledFor])
+  @@index([articleId])
+  @@map("publication_schedules")
 }

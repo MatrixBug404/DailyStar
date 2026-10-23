@@ -1,11 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "paths": {
-      "@dailystar/types": ["../../packages/types/src/index.ts"],
-      "@dailystar/types/*": ["../../packages/types/src/*"]
-    }
+    "outDir": "./dist"
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "test", "**/*spec.ts", "**/*e2e-spec.ts"]

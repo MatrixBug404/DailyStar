@@ -58,7 +58,7 @@ export async function cmsFetch<T = any>(
   session?: CmsSessionRef,
 ): Promise<T> {
   const url = normalizeUrl(API_BASE, path);
-  let token = session?.accessToken;
+  const token = session?.accessToken;
 
   const makeRequest = async (currentToken: string | null | undefined) => {
     const headers = new Headers(init?.headers);

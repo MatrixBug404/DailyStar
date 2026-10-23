@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import configuration from './config/configuration';
+import { createBullConnectionOptions } from './config/bull-connection';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { ArticlesModule } from './modules/articles/articles.module';
@@ -13,6 +14,8 @@ import { MediaModule } from './modules/media/media.module';
 import { PublicModule } from './modules/public/public.module';
 import { SearchModule } from './modules/search/search.module';
 import { RbacModule } from './modules/rbac/rbac.module';
+import { BullModule } from '@nestjs/bullmq';
+import { SchedulingModule } from './modules/scheduling/scheduling.module';
 
 /**
  * Root application module.
@@ -28,6 +31,10 @@ import { RbacModule } from './modules/rbac/rbac.module';
       load: [configuration],
       envFilePath: ['.env', '.env.local'],
     }),
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: createBullConnectionOptions,
+    }),
     UsersModule,
     AuthModule,
     ArticlesModule,
@@ -38,6 +45,7 @@ import { RbacModule } from './modules/rbac/rbac.module';
     PublicModule,
     SearchModule,
     RbacModule,
+    SchedulingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

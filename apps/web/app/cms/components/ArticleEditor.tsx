@@ -165,7 +165,7 @@ export function ArticleEditor({ articleId }: { articleId: string }) {
     ArticleStatus.ARCHIVED
   ].includes(article.status));
 
-  const showEditWarning = article && [ArticleStatus.APPROVED, ArticleStatus.SCHEDULED].includes(article.status);
+  const showEditWarning = article && [ArticleStatus.APPROVED, ArticleStatus.SCHEDULED, ArticleStatus.FAILED_TO_PUBLISH].includes(article.status);
 
   if (loading) return <div className="p-4">Loading article...</div>;
 
@@ -174,19 +174,33 @@ export function ArticleEditor({ articleId }: { articleId: string }) {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">{isNew ? 'New Article' : `Edit Article: ${title || article?.id}`}</h1>
         {!isNew && article && (
-          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-            article.status === ArticleStatus.PUBLISHED ? 'bg-green-100 text-green-800' :
-            article.status === ArticleStatus.DRAFT ? 'bg-gray-100 text-gray-800' :
-            'bg-blue-100 text-blue-800'
-          }`}>
-            {article.status} (v{article.version})
-          </span>
+          <div className="flex flex-col items-end">
+            <span className={`px-3 py-1 rounded-full text-sm font-semibold mb-1 ${
+              article.status === ArticleStatus.PUBLISHED ? 'bg-green-100 text-green-800' :
+              article.status === ArticleStatus.DRAFT ? 'bg-gray-100 text-gray-800' :
+              article.status === ArticleStatus.FAILED_TO_PUBLISH ? 'bg-red-100 text-red-800' :
+              'bg-blue-100 text-blue-800'
+            }`}>
+              {article.status} (v{article.version})
+            </span>
+            {article.status === ArticleStatus.SCHEDULED && article.scheduledFor && (
+              <span className="text-xs text-gray-500 font-medium">
+                Scheduled for: {new Date(article.scheduledFor).toLocaleString()}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
       {error && (
         <div className="bg-red-50 text-red-700 p-4 rounded mb-6 whitespace-pre-wrap">
           {error}
+        </div>
+      )}
+
+      {article?.status === ArticleStatus.FAILED_TO_PUBLISH && (
+        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded mb-6">
+          <strong>Publishing Failed:</strong> The scheduled publication for this article failed. Please review the article, make any necessary corrections, and resubmit or reschedule.
         </div>
       )}
 
