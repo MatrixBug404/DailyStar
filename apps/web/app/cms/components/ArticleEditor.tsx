@@ -79,6 +79,24 @@ export function ArticleEditor({ articleId }: { articleId: string }) {
     fetchArticle();
   }, [fetchCategories, fetchArticle]);
 
+  const isDirty =
+    title !== (isNew ? '' : (article?.currentRevision?.title || '')) ||
+    body !== (isNew ? '' : (article?.currentRevision?.body || '')) ||
+    excerpt !== (isNew ? '' : (article?.currentRevision?.excerpt || '')) ||
+    tagsInput !== (isNew ? '' : (article?.tags?.map((t: any) => t.tag.name).join(', ') || '')) ||
+    categoryId !== (isNew ? '' : (article?.categoryId || ''));
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
   const executeSave = async () => {
     try {
       setSaving(true);

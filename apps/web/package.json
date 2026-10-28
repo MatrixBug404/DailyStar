@@ -4,7 +4,7 @@
   "description": "DailyStar public-facing news site and editorial CMS — Next.js frontend",
   "private": true,
   "scripts": {
-    "dev": "next dev --port ${NEXT_PORT:-3000}",
+    "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

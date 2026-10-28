@@ -6,7 +6,10 @@ import { useCmsApi } from '../../../lib/cms-api';
 import { useSession } from '../session-provider';
 import { ArticleStatus } from '@dailystar/types';
 
-jest.mock('../../../lib/cms-api');
+jest.mock('../../../lib/cms-api', () => ({
+  ...jest.requireActual('../../../lib/cms-api'),
+  useCmsApi: jest.fn(),
+}));
 jest.mock('../session-provider');
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -134,6 +137,8 @@ describe('ArticleList', () => {
 
     await renderComponent();
     expect(screen.getByText('Get started by creating your first article.')).toBeInTheDocument();
+    // Verify Create Article button is visible
+    expect(screen.getAllByText('Create Article').length).toBeGreaterThan(0);
   });
 
   it('shows filtered empty state when filters are applied', async () => {
@@ -151,6 +156,11 @@ describe('ArticleList', () => {
     });
 
     expect(screen.getByText('Try adjusting your filters to find what you are looking for.')).toBeInTheDocument();
+    // Verify Create Article button in empty state is not visible
+    const createButtons = screen.queryAllByText('Create Article');
+    // There might be a Create Article button in the header, but we want to ensure the empty state one is not there.
+    // Wait, let's just check the text in the document. Actually, the header button says 'New Article'.
+    expect(screen.queryByText('Create Article')).not.toBeInTheDocument();
   });
 
   it('respects fixedStatusFilter and hides filter bar', async () => {

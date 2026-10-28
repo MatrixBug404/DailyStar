@@ -2,10 +2,13 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { CoverPicker } from '../components/CoverPicker';
-import { useCmsApi } from '../../../lib/cms-api';
+import { useCmsApi, CmsApiError } from '../../../lib/cms-api';
 import { ArticleStatus } from '@dailystar/types';
 
-jest.mock('../../../lib/cms-api');
+jest.mock('../../../lib/cms-api', () => ({
+  ...jest.requireActual('../../../lib/cms-api'),
+  useCmsApi: jest.fn(),
+}));
 
 describe('CoverPicker', () => {
   const mockGet = jest.fn();
@@ -166,5 +169,89 @@ describe('CoverPicker', () => {
     });
 
     alertMock.mockRestore();
+  });
+
+  describe('API error handling', () => {
+    let alertMock: jest.SpyInstance;
+
+    beforeEach(() => {
+      alertMock = jest.spyOn(window, 'alert').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      alertMock.mockRestore();
+    });
+
+    it('handles ARTICLE_COVER_IMMUTABLE', async () => {
+      await renderComponent({ status: ArticleStatus.DRAFT, userPermissions: [], showEditWarning: false });
+
+      const error = new CmsApiError(400, 'ARTICLE_COVER_IMMUTABLE', 'ARTICLE_COVER_IMMUTABLE');
+      mockPatch.mockRejectedValueOnce(error);
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Set Cover'));
+      });
+
+      // simulate picking media directly to trigger executeSetCover
+      // We can't directly trigger executeSetCover easily without mocking fetchMedia etc,
+      // so we use the file input upload path
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+      const file = new File(['dummy'], 'test.png', { type: 'image/png' });
+      mockPost.mockResolvedValue({ id: 'new-media-1' });
+
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+
+      await waitFor(() => {
+        expect(alertMock).toHaveBeenCalledWith('Cannot change cover: Article is published or archived.');
+      });
+    });
+
+    it('handles COVER_MUTATION_NOT_PERMITTED', async () => {
+      await renderComponent({ status: ArticleStatus.DRAFT, userPermissions: [], showEditWarning: false });
+
+      const error = new CmsApiError(403, 'COVER_MUTATION_NOT_PERMITTED', 'COVER_MUTATION_NOT_PERMITTED');
+      mockPatch.mockRejectedValueOnce(error);
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Set Cover'));
+      });
+
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+      const file = new File(['dummy'], 'test.png', { type: 'image/png' });
+      mockPost.mockResolvedValue({ id: 'new-media-1' });
+
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+
+      await waitFor(() => {
+        expect(alertMock).toHaveBeenCalledWith('Cannot change cover while article is in review.');
+      });
+    });
+
+    it('handles VERSION_MISMATCH', async () => {
+      await renderComponent({ status: ArticleStatus.DRAFT, userPermissions: [], showEditWarning: false });
+
+      const error = new CmsApiError(409, 'VERSION_MISMATCH', 'VERSION_MISMATCH');
+      mockPatch.mockRejectedValueOnce(error);
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Set Cover'));
+      });
+
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+      const file = new File(['dummy'], 'test.png', { type: 'image/png' });
+      mockPost.mockResolvedValue({ id: 'new-media-1' });
+
+      await act(async () => {
+        fireEvent.change(input, { target: { files: [file] } });
+      });
+
+      await waitFor(() => {
+        expect(alertMock).toHaveBeenCalledWith('This article was changed elsewhere — reload to see latest version');
+      });
+    });
   });
 });
