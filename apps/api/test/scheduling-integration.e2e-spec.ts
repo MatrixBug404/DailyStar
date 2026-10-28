@@ -4,6 +4,8 @@ import { WorkflowService, TerminalPublicationError } from '../src/modules/workfl
 import { SchedulingService } from '../src/modules/scheduling/scheduling.service';
 import { SchedulingProcessor } from '../src/modules/scheduling/scheduling.processor';
 import { AuditService } from '../src/modules/audit/audit.service';
+import { NotificationsService } from '../src/modules/notifications/notifications.service';
+import { EmailDispatchService } from '../src/modules/notifications/email/email-dispatch.service';
 import { getQueueToken } from '@nestjs/bullmq';
 
 const mockTx = {
@@ -88,6 +90,18 @@ describe('Phase 7 Scheduling Integration Tests (Race Conditions, Recovery & Pers
           provide: AuditService,
           useValue: {
             log: jest.fn().mockResolvedValue({ id: 'audit-1' }),
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: {
+            createForEventSafely: jest.fn().mockResolvedValue([{ id: 'notification-1' }]),
+          },
+        },
+        {
+          provide: EmailDispatchService,
+          useValue: {
+            dispatchEmailsSafely: jest.fn().mockResolvedValue(undefined),
           },
         },
         {

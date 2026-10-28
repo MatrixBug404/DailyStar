@@ -16,6 +16,7 @@ import { SearchModule } from './modules/search/search.module';
 import { RbacModule } from './modules/rbac/rbac.module';
 import { BullModule } from '@nestjs/bullmq';
 import { SchedulingModule } from './modules/scheduling/scheduling.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 /**
  * Root application module.
@@ -46,6 +47,7 @@ import { SchedulingModule } from './modules/scheduling/scheduling.module';
     SearchModule,
     RbacModule,
     SchedulingModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

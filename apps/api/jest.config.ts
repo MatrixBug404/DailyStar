@@ -12,7 +12,7 @@ const config: Config = {
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@dailystar/types(.*)$': '<rootDir>/../../packages/types/src$1',
+    '^@dailystar/types(.*)$': '<rootDir>/../../../packages/types/src$1',
   },
 };
 

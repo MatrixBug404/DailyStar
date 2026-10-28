@@ -49,6 +49,7 @@ model User {
   auditLogs            AuditLog[]            @relation("AuditLogActor")
   uploadedMedia        Media[]               @relation("MediaUploadedBy")
   publicationSchedules PublicationSchedule[] @relation("PublicationScheduledBy")
+  notifications        Notification[]        @relation("NotificationRecipient")
 
   @@map("users")
 }
@@ -174,6 +175,7 @@ model Article {
   coverMedia   Media?  @relation("ArticleCoverMedia", fields: [coverMediaId], references: [id], onDelete: NoAction)
 
   publicationSchedules PublicationSchedule[] @relation("ArticlePublicationSchedules")
+  notifications        Notification[]        @relation("ArticleNotifications")
 
   @@index([primaryAuthorId])
   @@index([categoryId])
@@ -343,4 +345,51 @@ model PublicationSchedule {
   @@index([status, scheduledFor])
   @@index([articleId])
   @@map("publication_schedules")
+}
+
+// ─── Phase 8: Notifications ─────────────────────────────────────────────────
+
+enum NotificationType {
+  ARTICLE_SUBMITTED_FOR_REVIEW
+  ARTICLE_APPROVED
+  ARTICLE_REJECTED
+  ARTICLE_FAILED_TO_PUBLISH
+}
+
+enum NotificationEmailStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model Notification {
+  id             String                  @id @default(uuid())
+  recipientId    String
+  type           NotificationType
+  /// Persisted display snapshot so the list does not depend on mutable article state.
+  title          String                  @db.VarChar(200)
+  body           String                  @db.Text
+  articleId      String?
+  /// Unique per recipient; enforces duplicate suppression. Format in §6.3.
+  dedupeKey      String                  @db.VarChar(200)
+  /// Event-specific structured metadata (e.g., scheduleId, failure reason).
+  data           Json?
+  readAt         DateTime?
+  emailStatus    NotificationEmailStatus @default(PENDING)
+  emailAttempts  Int                     @default(0)
+  emailLastError String?                 @db.Text
+  emailSentAt    DateTime?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  recipient User     @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  article   Article? @relation("ArticleNotifications", fields: [articleId], references: [id], onDelete: SetNull)
+
+  @@unique([recipientId, dedupeKey])
+  @@index([recipientId, readAt])
+  @@index([recipientId, createdAt])
+  @@index([emailStatus, createdAt])
+  @@index([articleId])
+  @@map("notifications")
 }

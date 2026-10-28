@@ -7,7 +7,7 @@
     "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "./tsconfig.json" }]
   },
   "moduleNameMapper": {
-    "^@dailystar/types(.*)$": "<rootDir>/../../packages/types/src$1"
+    "^@dailystar/types(.*)$": "<rootDir>/../../../packages/types/src$1"
   },
   "setupFiles": ["<rootDir>/setup.ts"]
 }

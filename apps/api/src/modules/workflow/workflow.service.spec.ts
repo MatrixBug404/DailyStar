@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { NotificationType } from '@dailystar/types';
 import { WorkflowService, TerminalPublicationError } from './workflow.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { EmailDispatchService } from '../notifications/email/email-dispatch.service';
 
 const mockTx = {
   article: {
@@ -9,6 +12,9 @@ const mockTx = {
     update: jest.fn(),
   },
   articleRevision: {
+    findUnique: jest.fn(),
+  },
+  user: {
     findUnique: jest.fn(),
   },
   publicationSchedule: {
@@ -49,6 +55,12 @@ import { prisma } from '../../database/client';
 describe('WorkflowService (Phase 7 Unit Tests)', () => {
   let service: WorkflowService;
   let auditService: AuditService;
+  let notificationsService: {
+    createForEventSafely: jest.Mock;
+  };
+  let emailDispatchService: {
+    dispatchEmailsSafely: jest.Mock;
+  };
 
   const mockUser = {
     sub: 'user-author-1',
@@ -66,10 +78,19 @@ describe('WorkflowService (Phase 7 Unit Tests)', () => {
     mockTx.article.findUnique.mockReset();
     mockTx.article.update.mockReset();
     mockTx.articleRevision.findUnique.mockReset();
+    mockTx.user.findUnique.mockReset();
+    mockTx.user.findUnique.mockResolvedValue({ displayName: 'Editor One' });
     mockTx.publicationSchedule.findMany.mockReset();
     mockTx.publicationSchedule.findUnique.mockReset();
     mockTx.publicationSchedule.updateMany.mockReset();
     mockTx.publicationSchedule.updateMany.mockResolvedValue({ count: 1 });
+
+    notificationsService = {
+      createForEventSafely: jest.fn().mockResolvedValue([{ id: 'notification-1' }]),
+    };
+    emailDispatchService = {
+      dispatchEmailsSafely: jest.fn().mockResolvedValue(undefined),
+    };
 
     (prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
       if (typeof callback === 'function') {
@@ -87,11 +108,152 @@ describe('WorkflowService (Phase 7 Unit Tests)', () => {
             log: jest.fn().mockResolvedValue({ id: 'audit-1' }),
           },
         },
+        { provide: NotificationsService, useValue: notificationsService },
+        { provide: EmailDispatchService, useValue: emailDispatchService },
       ],
     }).compile();
 
     service = module.get<WorkflowService>(WorkflowService);
     auditService = module.get<AuditService>(AuditService);
+  });
+
+  describe('Notification event integration (Phase 8 M4)', () => {
+    const author = { sub: 'author-1', permissions: ['article.submit-review'] };
+    const editor = {
+      sub: 'editor-1',
+      permissions: ['article.read.any', 'article.approve', 'article.reject'],
+    };
+
+    function draftArticle(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'article-1',
+        status: 'DRAFT',
+        primaryAuthorId: author.sub,
+        currentRevisionId: 'rev-1',
+        version: 1,
+        deletedAt: null,
+        ...overrides,
+      };
+    }
+
+    beforeEach(() => {
+      mockTx.articleRevision.findUnique.mockResolvedValue({
+        id: 'rev-1',
+        articleId: 'article-1',
+        title: 'M4 Article',
+      });
+    });
+
+    it('submitReview creates editor notifications with the versioned dedupe key after the audit write', async () => {
+      mockTx.article.findUnique.mockResolvedValue(draftArticle());
+      mockTx.article.update.mockResolvedValue(draftArticle({ status: 'SUBMITTED_FOR_REVIEW', version: 2 }));
+
+      const result = await service.submitReview('article-1', author, 1);
+
+      expect(result.status).toBe('SUBMITTED_FOR_REVIEW');
+      expect(notificationsService.createForEventSafely).toHaveBeenCalledWith(
+        mockTx,
+        expect.objectContaining({
+          type: NotificationType.ARTICLE_SUBMITTED_FOR_REVIEW,
+          articleId: 'article-1',
+          primaryAuthorId: author.sub,
+          actorId: author.sub,
+          dedupeKey: 'article-submitted:article-1:2',
+          title: 'Article submitted for review',
+          body: '“M4 Article” was submitted for review by Editor One.',
+          data: { articleVersion: 2 },
+        }),
+      );
+      expect(emailDispatchService.dispatchEmailsSafely).toHaveBeenCalledWith(['notification-1']);
+
+      const auditOrder = (auditService.log as jest.Mock).mock.invocationCallOrder[0];
+      const notificationOrder = notificationsService.createForEventSafely.mock.invocationCallOrder[0];
+      const dispatchOrder = emailDispatchService.dispatchEmailsSafely.mock.invocationCallOrder[0];
+      expect(auditOrder).toBeLessThan(notificationOrder);
+      expect(notificationOrder).toBeLessThan(dispatchOrder);
+    });
+
+    it('approve targets the author dedupe key and dispatches only after the transaction', async () => {
+      mockTx.article.findUnique.mockResolvedValue(
+        draftArticle({ status: 'UNDER_REVIEW', version: 2 }),
+      );
+      mockTx.article.update.mockResolvedValue(
+        draftArticle({ status: 'APPROVED', version: 3, approvedRevisionId: 'rev-1' }),
+      );
+
+      const result = await service.approve('article-1', editor, 2);
+
+      expect(result.status).toBe('APPROVED');
+      expect(notificationsService.createForEventSafely).toHaveBeenCalledWith(
+        mockTx,
+        expect.objectContaining({
+          type: NotificationType.ARTICLE_APPROVED,
+          dedupeKey: 'article-approved:article-1:3',
+          body: '“M4 Article” was approved by Editor One.',
+          data: { articleVersion: 3 },
+        }),
+      );
+      const transactionOrder = (prisma.$transaction as jest.Mock).mock.invocationCallOrder[0];
+      const dispatchOrder = emailDispatchService.dispatchEmailsSafely.mock.invocationCallOrder[0];
+      expect(transactionOrder).toBeLessThan(dispatchOrder);
+    });
+
+    it('reject targets the author dedupe key', async () => {
+      mockTx.article.findUnique.mockResolvedValue(
+        draftArticle({ status: 'UNDER_REVIEW', version: 2 }),
+      );
+      mockTx.article.update.mockResolvedValue(draftArticle({ status: 'DRAFT', version: 3 }));
+
+      const result = await service.reject('article-1', editor, 2, 'Needs work');
+
+      expect(result.status).toBe('DRAFT');
+      expect(notificationsService.createForEventSafely).toHaveBeenCalledWith(
+        mockTx,
+        expect.objectContaining({
+          type: NotificationType.ARTICLE_REJECTED,
+          dedupeKey: 'article-rejected:article-1:3',
+          body: '“M4 Article” was rejected by Editor One.',
+        }),
+      );
+    });
+
+    it('requestChanges has no notification side effect (OD-2 deferred)', async () => {
+      mockTx.article.findUnique.mockResolvedValue(
+        draftArticle({ status: 'UNDER_REVIEW', version: 2 }),
+      );
+      mockTx.article.update.mockResolvedValue(draftArticle({ status: 'DRAFT', version: 3 }));
+
+      await service.requestChanges('article-1', editor, 2, 'Please revise');
+
+      expect(notificationsService.createForEventSafely).not.toHaveBeenCalled();
+      expect(emailDispatchService.dispatchEmailsSafely).not.toHaveBeenCalled();
+    });
+
+    it('notification implementation failure cannot prevent the transition response', async () => {
+      mockTx.article.findUnique.mockResolvedValue(draftArticle());
+      mockTx.article.update.mockResolvedValue(
+        draftArticle({ status: 'SUBMITTED_FOR_REVIEW', version: 2 }),
+      );
+      notificationsService.createForEventSafely.mockRejectedValue(new Error('insert exploded'));
+
+      const result = await service.submitReview('article-1', author, 1);
+
+      expect(result.status).toBe('SUBMITTED_FOR_REVIEW');
+      expect(mockTx.article.update).toHaveBeenCalled();
+      expect(emailDispatchService.dispatchEmailsSafely).not.toHaveBeenCalled();
+    });
+
+    it('email dispatch failure cannot replace a successful transition outcome', async () => {
+      mockTx.article.findUnique.mockResolvedValue(draftArticle());
+      mockTx.article.update.mockResolvedValue(
+        draftArticle({ status: 'SUBMITTED_FOR_REVIEW', version: 2 }),
+      );
+      emailDispatchService.dispatchEmailsSafely.mockRejectedValue(new Error('redis down'));
+
+      await expect(service.submitReview('article-1', author, 1)).resolves.toMatchObject({
+        status: 'SUBMITTED_FOR_REVIEW',
+      });
+    });
   });
 
   describe('Scheduling Lead-Time & Workflow States', () => {
@@ -351,6 +513,18 @@ describe('WorkflowService (Phase 7 Unit Tests)', () => {
         }),
         mockTx,
       );
+      expect(notificationsService.createForEventSafely).toHaveBeenCalledWith(
+        mockTx,
+        expect.objectContaining({
+          type: NotificationType.ARTICLE_FAILED_TO_PUBLISH,
+          articleId: 'art-1',
+          actorId: null,
+          dedupeKey: 'article-publish-failed:sched-1',
+          data: { scheduleId: 'sched-1', reason: 'VERSION_MISMATCH' },
+        }),
+      );
+      expect(notificationsService.createForEventSafely).toHaveBeenCalledTimes(1);
+      expect(emailDispatchService.dispatchEmailsSafely).toHaveBeenCalledWith(['notification-1']);
     });
 
     it('should persist FAILED_TO_PUBLISH and PUBLISH_FAILED audit event on approved revision mismatch', async () => {
@@ -400,6 +574,64 @@ describe('WorkflowService (Phase 7 Unit Tests)', () => {
         }),
         mockTx,
       );
+      expect(notificationsService.createForEventSafely).toHaveBeenCalledWith(
+        mockTx,
+        expect.objectContaining({
+          type: NotificationType.ARTICLE_FAILED_TO_PUBLISH,
+          dedupeKey: 'article-publish-failed:sched-1',
+          data: { scheduleId: 'sched-1', reason: 'REVISION_MISMATCH' },
+        }),
+      );
+      expect(notificationsService.createForEventSafely).toHaveBeenCalledTimes(1);
+      expect(emailDispatchService.dispatchEmailsSafely).toHaveBeenCalledWith(['notification-1']);
+    });
+
+    it('should notify once on approved revision not found after commit', async () => {
+      mockTx.$queryRaw
+        .mockResolvedValueOnce([
+          {
+            id: 'sched-1',
+            articleId: 'art-1',
+            status: 'PENDING',
+            expectedArticleVersion: 3,
+            approvedRevisionId: 'rev-1',
+            scheduledFor: new Date(),
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            id: 'art-1',
+            status: 'SCHEDULED',
+            version: 3,
+            primaryAuthorId: 'author-1',
+            currentRevisionId: 'rev-1',
+            approvedRevisionId: 'rev-1',
+          },
+        ]);
+      mockTx.articleRevision.findUnique.mockResolvedValue({
+        id: 'rev-1',
+        articleId: 'other-article',
+      });
+      mockTx.article.update.mockResolvedValue({
+        id: 'art-1',
+        status: 'FAILED_TO_PUBLISH',
+        version: 4,
+      });
+
+      await expect(service.executeScheduledPublish('sched-1')).rejects.toThrow(
+        'APPROVED_REVISION_NOT_FOUND',
+      );
+
+      expect(notificationsService.createForEventSafely).toHaveBeenCalledWith(
+        mockTx,
+        expect.objectContaining({
+          type: NotificationType.ARTICLE_FAILED_TO_PUBLISH,
+          dedupeKey: 'article-publish-failed:sched-1',
+          data: { scheduleId: 'sched-1', reason: 'APPROVED_REVISION_NOT_FOUND' },
+        }),
+      );
+      expect(notificationsService.createForEventSafely).toHaveBeenCalledTimes(1);
+      expect(emailDispatchService.dispatchEmailsSafely).toHaveBeenCalledWith(['notification-1']);
     });
 
     it('should successfully publish scheduled article and record SCHEDULE_MISSED if delayed', async () => {
@@ -716,6 +948,8 @@ describe('WorkflowService (Phase 7 Unit Tests)', () => {
         expect(mockTx.publicationSchedule.updateMany).not.toHaveBeenCalled();
         expect(mockTx.article.update).not.toHaveBeenCalled();
         expect(auditService.log).not.toHaveBeenCalled();
+        expect(notificationsService.createForEventSafely).not.toHaveBeenCalled();
+        expect(emailDispatchService.dispatchEmailsSafely).not.toHaveBeenCalled();
       },
     );
 
@@ -800,6 +1034,18 @@ describe('WorkflowService (Phase 7 Unit Tests)', () => {
         }),
         mockTx,
       );
+
+      expect(notificationsService.createForEventSafely).toHaveBeenCalledWith(
+        mockTx,
+        expect.objectContaining({
+          type: NotificationType.ARTICLE_FAILED_TO_PUBLISH,
+          articleId: 'art-1',
+          actorId: null,
+          dedupeKey: 'article-publish-failed:sched-1',
+          data: { scheduleId: 'sched-1', reason: 'Max retries exhausted' },
+        }),
+      );
+      expect(emailDispatchService.dispatchEmailsSafely).toHaveBeenCalledWith(['notification-1']);
 
       // The schedule must be conditionally terminalized before the Article moves.
       const scheduleOrder = (mockTx.publicationSchedule.updateMany as jest.Mock).mock

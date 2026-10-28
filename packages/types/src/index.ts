@@ -45,3 +45,7 @@ export interface ApiErrorResponse {
 // ─── Phase 6 Domain Types ──────────────────────────────────────────────────────
 
 export * from './article';
+
+// ─── Phase 8 Domain Types ──────────────────────────────────────────────────────
+
+export * from './notification';
