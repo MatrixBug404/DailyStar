@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../session-provider';
+import { NotificationBadge } from '../components/NotificationList';
 
 /**
  * Protected Layout (D7).
@@ -29,7 +30,10 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   return (
     <div className="cms-protected-layout">
       <nav className="p-4 bg-gray-100 border-b flex justify-between items-center">
-        <span className="font-semibold">DailyStar CMS (Protected)</span>
+        <div className="flex items-center gap-4">
+          <span className="font-semibold">DailyStar CMS (Protected)</span>
+          <NotificationBadge />
+        </div>
         <button
           onClick={() => logout()}
           className="text-sm text-gray-600 hover:text-black"
