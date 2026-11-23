@@ -22,6 +22,20 @@ const config: Config = {
           700: '#1d4ed8',
           900: '#1e3a8a',
         },
+        // Public newsroom editorial palette (Phase 8 public redesign).
+        ink: '#1a1714',
+        charcoal: '#3a342d',
+        paper: {
+          DEFAULT: '#faf8f3',
+          dark: '#f0ebe1',
+        },
+        rule: '#ddd5c6',
+        muted: '#6f665b',
+        crimson: {
+          DEFAULT: '#9c1c1c',
+          dark: '#7a1414',
+          light: '#e8a0a0',
+        },
       },
     },
   },

@@ -1,127 +1,187 @@
 import { render, screen } from '@testing-library/react';
-import HomePage, { revalidate as homeRevalidate } from '../page';
-import ArticlePage, { revalidate as articleRevalidate } from '../article/[slug]/page';
-import CategoryPage, { revalidate as categoryRevalidate } from '../category/[slug]/page';
-import SearchPage, { dynamic as searchDynamic } from '../search/page';
+import '@testing-library/jest-dom';
+import ArticlePage, { generateMetadata } from '../article/[slug]/page';
+import { fetchPublicApi } from '../../lib/api';
+import { PublicArticleFull, PublicCategory } from '../../lib/public-content';
 
-const mockNotFound = jest.fn(() => { throw new Error('NEXT_NOT_FOUND'); });
+const mockNotFound = jest.fn(() => {
+  throw new Error('NEXT_NOT_FOUND');
+});
+const mockRedirect = jest.fn(() => {
+  throw new Error('NEXT_REDIRECT');
+});
+
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
   usePathname: () => '/',
   notFound: () => mockNotFound(),
+  redirect: (url: string) => mockRedirect(url),
 }));
 
 jest.mock('../../lib/api', () => ({
   fetchPublicApi: jest.fn(),
 }));
 
-import { fetchPublicApi } from '../../lib/api';
+const categories: PublicCategory[] = [
+  {
+    id: 'c1',
+    name: 'Politics',
+    slug: 'politics',
+    parentId: null,
+    publishedArticleCount: 4,
+    children: [],
+  },
+];
 
-describe('Public Pages', () => {
+const article: PublicArticleFull = {
+  id: 'a1',
+  slug: 'budget-session',
+  title: 'Budget session opens with jobs pledge',
+  excerpt: 'The government opened the budget session with a focus on employment.',
+  body: [
+    '# A long session',
+    '',
+    'The house met with **record attendance** and a [live briefing](/search).',
+    '',
+    '- Jobs guarantee',
+    '- Rail expansion',
+  ].join('\n'),
+  publishedAt: '2026-11-13T04:30:00.000Z',
+  publishedRevisionCreatedAt: '2026-11-13T04:00:00.000Z',
+  hasCoverImage: true,
+  coverWidth: 1200,
+  coverHeight: 675,
+  coverMimeType: 'image/jpeg',
+  category: { id: 'c1', name: 'Politics', slug: 'politics' },
+  author: {
+    displayName: 'Asha Menon',
+    bio: 'Asha Menon covers parliament and public policy.',
+    avatarUrl: null,
+  },
+  tags: ['Budget', 'Economy'],
+};
+
+function mockArticleApi(value: PublicArticleFull | null = article) {
+  (fetchPublicApi as jest.Mock).mockImplementation((path: string) => {
+    if (path === '/public/categories') {
+      return Promise.resolve(categories);
+    }
+    if (path.startsWith('/public/articles/')) {
+      return Promise.resolve(value);
+    }
+    return Promise.resolve(null);
+  });
+}
+
+function renderArticle(value: PublicArticleFull = article) {
+  mockArticleApi(value);
+  return ArticlePage({ params: Promise.resolve({ slug: value.slug }) });
+}
+
+describe('ArticlePage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('HomePage', () => {
-    it('exports revalidate = 60', () => {
-      expect(homeRevalidate).toBe(60);
-    });
+  it('renders string tags and the Markdown body without crashing', async () => {
+    const { container } = render(await renderArticle());
 
-    it('renders article data from mocked API', async () => {
-      (fetchPublicApi as jest.Mock).mockResolvedValueOnce({
-        data: [
-          {
-            id: '1',
-            slug: 'test-article',
-            title: 'Test Headline',
-            excerpt: 'Test Excerpt',
-            publishedRevisionCreatedAt: new Date().toISOString(),
-            primaryAuthor: { displayName: 'Author Name' },
-          },
-        ],
-      });
+    expect(screen.getByRole('heading', { level: 1, name: article.title })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'A long session' })).toBeInTheDocument();
+    expect(screen.getByText('record attendance').tagName).toBe('STRONG');
+    expect(screen.getByRole('link', { name: 'live briefing' })).toHaveAttribute(
+      'href',
+      '/search',
+    );
 
-      const ui = await HomePage();
-      render(ui);
-
-      expect(screen.getByText('Test Headline')).toBeInTheDocument();
-      expect(screen.getByText('Test Excerpt')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Test Headline' })).toHaveAttribute('href', '/article/test-article');
-    });
+    expect(screen.getByText('#Budget')).toBeInTheDocument();
+    expect(screen.getByText('#Economy')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tags' })).toBeInTheDocument();
+    expect(container.querySelector('script')).toBeNull();
   });
 
-  describe('ArticlePage', () => {
-    it('exports revalidate = 300', () => {
-      expect(articleRevalidate).toBe(300);
-    });
+  it('handles an article with no tags', async () => {
+    render(await renderArticle({ ...article, tags: [] }));
 
-    it('uses /og-image/[slug] for cover, never presigned URL', async () => {
-      (fetchPublicApi as jest.Mock).mockResolvedValueOnce({
-        id: '1',
-        title: 'Article Cover Test',
-        body: 'Body text',
-        slug: 'test-cover',
-        publishedRevisionCreatedAt: new Date().toISOString(),
-        hasCoverImage: true,
-      });
-
-      const params = Promise.resolve({ slug: 'test-cover' });
-      const ui = await ArticlePage({ params });
-      render(ui);
-
-      const img = screen.getByRole('img');
-      expect(img).toHaveAttribute('src', '/og-image/test-cover');
-      expect(img.getAttribute('src')).not.toContain('http'); // No presigned URL
-    });
+    expect(screen.queryByText('Tags')).not.toBeInTheDocument();
+    expect(screen.queryByText('#Budget')).not.toBeInTheDocument();
   });
 
-  describe('CategoryPage', () => {
-    it('exports revalidate = 300', () => {
-      expect(categoryRevalidate).toBe(300);
-    });
+  it('handles a partial payload where tags are missing entirely', async () => {
+    render(
+      await renderArticle({
+        ...article,
+        tags: undefined as unknown as string[],
+      }),
+    );
 
-    it('triggers notFound() when API returns 404 (null)', async () => {
-      (fetchPublicApi as jest.Mock).mockResolvedValueOnce(null);
-
-      const params = Promise.resolve({ slug: 'empty-cat' });
-      try {
-        await CategoryPage({ params });
-      } catch (e: any) {
-        expect(e.message).toBe('NEXT_NOT_FOUND');
-      }
-
-      expect(mockNotFound).toHaveBeenCalled();
-    });
+    expect(screen.queryByText('Tags')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: article.title })).toBeInTheDocument();
   });
 
-  describe('SearchPage', () => {
-    it('has no ISR/revalidate and sets dynamic = force-dynamic', () => {
-      // @ts-expect-error test
-      expect(SearchPage.revalidate).toBeUndefined();
-      expect(searchDynamic).toBe('force-dynamic');
+  it('renders the real author field and a semantic publication date', async () => {
+    render(await renderArticle());
+
+    expect(screen.getByText('Asha Menon')).toBeInTheDocument();
+    expect(screen.getByText('Asha Menon covers parliament and public policy.')).toBeInTheDocument();
+
+    const time = screen.getByText('13 Nov 2026');
+    expect(time.tagName).toBe('TIME');
+    expect(time).toHaveAttribute('datetime', '2026-11-13T04:30:00.000Z');
+  });
+
+  it('omits the author and separator cleanly when no author is supplied', async () => {
+    render(
+      await renderArticle({
+        ...article,
+        author: { displayName: '   ', bio: null, avatarUrl: null },
+      }),
+    );
+
+    expect(screen.queryByText('·')).not.toBeInTheDocument();
+    expect(screen.queryByText('Asha Menon')).not.toBeInTheDocument();
+    expect(screen.getByText('13 Nov 2026')).toBeInTheDocument();
+  });
+
+  it('uses the cover proxy with intrinsic dimensions and decorative alt text', async () => {
+    const { container } = render(await renderArticle());
+
+    const image = container.querySelector('img');
+    expect(image).not.toBeNull();
+    expect(image).toHaveAttribute('src', '/og-image/budget-session');
+    expect(image?.getAttribute('src')).not.toContain('http');
+    expect(image).toHaveAttribute('alt', '');
+    expect(image).toHaveAttribute('width', '1200');
+    expect(image).toHaveAttribute('height', '675');
+    expect(container.querySelector('a img')).toBeNull();
+  });
+
+  it('calls notFound() when the article API returns 404 (null)', async () => {
+    mockArticleApi(null);
+
+    await expect(
+      ArticlePage({ params: Promise.resolve({ slug: 'missing-story' }) }),
+    ).rejects.toThrow('NEXT_NOT_FOUND');
+
+    expect(mockNotFound).toHaveBeenCalled();
+  });
+
+  it('emits canonical, Open Graph article, author and publication metadata', async () => {
+    (fetchPublicApi as jest.Mock).mockResolvedValue(article);
+
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ slug: article.slug }),
     });
 
-    it('renders sanitized <b> markup using dangerouslySetInnerHTML', async () => {
-      (fetchPublicApi as jest.Mock).mockResolvedValueOnce({
-        data: [
-          {
-            article: {
-              id: '1',
-              slug: 'test-search',
-              publishedRevisionCreatedAt: new Date().toISOString(),
-            },
-            headline: 'Search <b>Highlight</b>',
-          },
-        ],
-      });
-
-      const searchParams = Promise.resolve({ q: 'highlight' });
-      const ui = await SearchPage({ searchParams });
-      render(ui);
-
-      // The <b> tag should be rendered as HTML, meaning we can find the text 'Highlight' inside a B element
-      const highlightEl = screen.getByText('Highlight');
-      expect(highlightEl.tagName).toBe('B');
+    expect(metadata.title).toBe(article.title);
+    expect(metadata.description).toBe(article.excerpt);
+    expect(metadata.alternates).toEqual({ canonical: '/article/budget-session' });
+    expect(metadata.openGraph).toMatchObject({
+      type: 'article',
+      title: article.title,
+      url: '/article/budget-session',
+      publishedTime: '2026-11-13T04:30:00.000Z',
+      authors: ['Asha Menon'],
+      images: [{ url: '/og-image/budget-session', width: 1200, height: 675 }],
     });
   });
 });

@@ -1,11 +1,24 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { fetchPublicApi } from '../../lib/api';
+import { fetchPublicCategories } from '../../lib/public-categories';
+import {
+  PublicSearchResponse,
+  PublicSearchResult,
+  SEARCH_PAGE_SIZE,
+  parsePageParam,
+  searchPageHref,
+} from '../../lib/public-content';
+import { PublicSiteShell } from '../../components/public/PublicSiteShell';
+import { SearchForm } from '../../components/public/SearchForm';
+import { StoryCard } from '../../components/public/StoryCard';
+import { PublicEmptyState } from '../../components/public/PublicEmptyState';
+import { PublicPagination } from '../../components/public/PublicPagination';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Search | DailyStar',
+  title: 'Search',
   robots: {
     index: false,
     follow: true,
@@ -13,75 +26,124 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  searchParams: Promise<{ q?: string | string[] }>;
+  searchParams: Promise<{
+    q?: string | string[];
+    page?: string | string[];
+  }>;
+}
+
+/**
+ * The search API returns flat rows that include the article summary fields.
+ * Reject a nested `{ article }` payload loudly instead of rendering an empty
+ * or malformed result list.
+ */
+function readSearchResults(response: PublicSearchResponse | null): PublicSearchResult[] {
+  if (!response) {
+    return [];
+  }
+
+  if (!Array.isArray(response.data)) {
+    throw new Error('Unexpected search response: data must be an array');
+  }
+
+  return response.data.map((item) => {
+    if (!item || typeof item.slug !== 'string' || typeof item.title !== 'string') {
+      throw new Error('Unexpected search response: expected flat result objects');
+    }
+    return item;
+  });
 }
 
 export default async function SearchPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const q = typeof params.q === 'string' ? params.q : Array.isArray(params.q) ? params.q[0] : '';
+  const rawQuery = typeof params.q === 'string' ? params.q : Array.isArray(params.q) ? params.q[0] : '';
+  const query = (rawQuery ?? '').trim().slice(0, 200);
+  const page = parsePageParam(params.page);
 
-  let articles: any[] = [];
+  const [searchResponse, categories] = await Promise.all([
+    query
+      ? fetchPublicApi<PublicSearchResponse>(
+          `/public/search?q=${encodeURIComponent(query)}&page=${page}&limit=${SEARCH_PAGE_SIZE}`,
+        )
+      : Promise.resolve(null),
+    fetchPublicCategories(),
+  ]);
 
-  if (q && q.trim().length > 0) {
-    const result = await fetchPublicApi(`/public/search?q=${encodeURIComponent(q.trim())}`);
-    articles = result?.data || [];
+  const results = readSearchResults(searchResponse);
+  const total = Math.max(0, searchResponse?.total ?? 0);
+  const limit = (searchResponse?.limit ?? SEARCH_PAGE_SIZE) || SEARCH_PAGE_SIZE;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  // A page beyond the result set is not a meaningful search URL.
+  if (query && total > 0 && results.length === 0 && page !== totalPages) {
+    redirect(searchPageHref(query, totalPages));
   }
 
   return (
-    <main className="mx-auto max-w-4xl p-8">
-      <h1 className="mb-6 text-3xl font-bold tracking-tight">Search</h1>
-
-      <form method="GET" action="/search" className="mb-10 flex gap-2">
-        <input
-          type="search"
-          name="q"
-          defaultValue={q}
-          placeholder="Search news..."
-          className="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          required
-        />
-        <button
-          type="submit"
-          className="rounded-md bg-blue-600 px-6 py-2 font-medium text-white hover:bg-blue-700"
-        >
-          Search
-        </button>
-      </form>
-
-      {q && (
-        <div className="mb-6">
-          <p className="text-gray-600">
-            Showing results for <span className="font-semibold">&quot;{q}&quot;</span>
+    <PublicSiteShell categories={categories}>
+      <main
+        id="public-main-content"
+        className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14"
+      >
+        <div className="max-w-3xl">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-crimson">
+            Newsroom archive
           </p>
+          <h1 className="mt-2 font-serif text-4xl font-bold tracking-tight sm:text-5xl">
+            Search
+          </h1>
+          <SearchForm idPrefix="page" defaultValue={query} className="mt-6 max-w-xl" />
         </div>
-      )}
 
-      <div className="flex flex-col space-y-8">
-        {q && articles.length === 0 ? (
-          <p className="text-gray-500">No results found.</p>
+        {!query ? (
+          <div className="mt-10">
+            <PublicEmptyState
+              eyebrow="DailyStar"
+              title="Search the newsroom"
+              message="Find published stories by headline, topic or keyword."
+            />
+          </div>
         ) : (
-          articles.map((item: any) => {
-            const article = item.article;
-            return (
-              <article key={article.id} className="border-b pb-6">
-                <h2 className="text-2xl font-semibold hover:text-blue-600 mb-2">
-                  <Link href={`/article/${article.slug}`}>
-                    {/* Render sanitized highlighted headline */}
-                    <span dangerouslySetInnerHTML={{ __html: item.headline }} />
-                  </Link>
-                </h2>
-                {article.excerpt && (
-                  <p className="text-gray-700">{article.excerpt}</p>
-                )}
-                <div className="mt-2 text-sm text-gray-500">
-                  {article.primaryAuthor?.displayName} •{' '}
-                  {new Date(article.publishedRevisionCreatedAt).toLocaleDateString()}
+          <>
+            <div className="mt-12 flex flex-wrap items-end justify-between gap-3 border-b-2 border-ink pb-4">
+              <h2 className="font-serif text-2xl font-bold tracking-tight sm:text-3xl">
+                Results for <span className="text-crimson">“{query}”</span>
+              </h2>
+              <p className="text-xs text-muted">
+                {total} {total === 1 ? 'story' : 'stories'}
+              </p>
+            </div>
+
+            {results.length === 0 ? (
+              <div className="mt-8">
+                <PublicEmptyState
+                  title="No stories found"
+                  message={`Nothing matches “${query}”. Try a different keyword or a broader phrase.`}
+                />
+              </div>
+            ) : (
+              <>
+                <div className="mt-8 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+                  {results.map((article) => (
+                    <StoryCard
+                      key={article.id}
+                      article={article}
+                      headline={article.headline}
+                    />
+                  ))}
                 </div>
-              </article>
-            );
-          })
+
+                <PublicPagination
+                  page={page}
+                  total={total}
+                  limit={limit}
+                  hrefFor={(targetPage) => searchPageHref(query, targetPage)}
+                />
+              </>
+            )}
+          </>
         )}
-      </div>
-    </main>
+      </main>
+    </PublicSiteShell>
   );
 }
