@@ -52,14 +52,14 @@ export type E2EUsers = {
 };
 
 export const test = base.extend<E2EUsers>({
-  authorUser: async ({}, use) => {
+  authorUser: async (_fixtures , use) => {
     const author = await provisionUser('author_e2e@dailystar.local', 'author');
     await use(author);
     // Cleanup/isolation expectation:
     // The user record is reused idempotently across runs to speed up testing.
     // E2E tests are responsible for isolating or cleaning up any articles they create.
   },
-  editorUser: async ({}, use) => {
+  editorUser: async (_fixtures , use) => {
     const editor = await provisionUser('editor_e2e@dailystar.local', 'editor');
     await use(editor);
   },
