@@ -1,7 +1,18 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { fetchPublicApi } from '../../../lib/api';
+import { fetchPublicCategories } from '../../../lib/public-categories';
+import {
+  PublicArticleFull,
+  articleHref,
+  articlePublishedAt,
+  authorDisplayName,
+  normalizeTags,
+} from '../../../lib/public-content';
+import { PublicSiteShell } from '../../../components/public/PublicSiteShell';
+import { StoryImage } from '../../../components/public/StoryImage';
+import { CategoryKicker, StoryByline } from '../../../components/public/StoryMeta';
+import { ArticleBody } from '../../../components/public/ArticleBody';
 
 export const revalidate = 300;
 
@@ -11,85 +22,139 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const article = await fetchPublicApi(`/public/articles/${slug}`);
+  const article = await fetchPublicApi<PublicArticleFull>(
+    `/public/articles/${encodeURIComponent(slug)}`,
+  );
 
   if (!article) {
-    return { title: 'Not Found' };
-  }
-
-  const metadata: Metadata = {
-    title: article.title,
-    description: article.excerpt,
-  };
-
-  if (article.hasCoverImage) {
-    metadata.openGraph = {
-      images: [`/og-image/${slug}`],
+    return {
+      title: 'Article not found',
+      robots: { index: false, follow: true },
     };
   }
 
-  return metadata;
+  const description = article.excerpt?.trim() || undefined;
+  const publishedTime = articlePublishedAt(article) ?? undefined;
+  const authorName = authorDisplayName(article.author);
+  const cover =
+    article.hasCoverImage && article.slug
+      ? {
+          url: `/og-image/${article.slug}`,
+          alt: article.title,
+          ...(article.coverWidth && article.coverWidth > 0
+            ? { width: article.coverWidth }
+            : {}),
+          ...(article.coverHeight && article.coverHeight > 0
+            ? { height: article.coverHeight }
+            : {}),
+        }
+      : null;
+
+  return {
+    title: article.title,
+    description,
+    alternates: {
+      canonical: articleHref(article.slug),
+    },
+    openGraph: {
+      type: 'article',
+      title: article.title,
+      description,
+      url: articleHref(article.slug),
+      ...(publishedTime ? { publishedTime } : {}),
+      ...(authorName ? { authors: [authorName] } : {}),
+      ...(cover ? { images: [cover] } : {}),
+    },
+  };
 }
 
 export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
-  const article = await fetchPublicApi(`/public/articles/${slug}`);
+
+  // Article first: a missing story ends in notFound() without starting an
+  // optional navigation request that will never be used.
+  const article = await fetchPublicApi<PublicArticleFull>(
+    `/public/articles/${encodeURIComponent(slug)}`,
+  );
 
   if (!article) {
     notFound();
   }
 
+  const categories = await fetchPublicCategories();
+  const tags = normalizeTags(article.tags);
+  const authorBio = article.author?.bio?.trim() || null;
+
   return (
-    <main className="mx-auto max-w-4xl p-8">
-      {article.hasCoverImage && (
-        <div className="mb-8 overflow-hidden rounded-xl">
-          <img
-            src={`/og-image/${slug}`}
-            alt={article.title}
-            className="w-full h-auto object-cover max-h-[500px]"
-          />
-        </div>
-      )}
+    <PublicSiteShell categories={categories}>
+      <main
+        id="public-main-content"
+        className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-14"
+      >
+        <article className="mx-auto max-w-3xl">
+          <header>
+            <CategoryKicker category={article.category} />
 
-      <header className="mb-8 border-b pb-8">
-        {article.category && (
-          <div className="mb-4">
-            <Link
-              href={`/category/${article.category.slug}`}
-              className="font-semibold text-blue-600 uppercase tracking-wider text-sm"
+            <h1 className="mt-3 font-serif text-4xl font-bold leading-[1.04] tracking-tight sm:text-5xl lg:text-6xl">
+              {article.title}
+            </h1>
+
+            {article.excerpt && (
+              <p className="mt-5 font-serif text-xl leading-relaxed text-charcoal/90 sm:text-2xl">
+                {article.excerpt}
+              </p>
+            )}
+
+            <StoryByline
+              article={article}
+              className="mt-6 border-y border-rule py-3 text-sm"
+            />
+          </header>
+
+          {article.hasCoverImage && (
+            <StoryImage
+              article={article}
+              aspectClassName="aspect-[16/9]"
+              priority
+              className="mt-8"
+            />
+          )}
+
+          <ArticleBody body={article.body} className="mt-10" />
+
+          {tags.length > 0 && (
+            <section aria-labelledby="article-tags-heading" className="mt-12 border-t border-rule pt-6">
+              <h2
+                id="article-tags-heading"
+                className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted"
+              >
+                Tags
+              </h2>
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <li key={tag}>
+                    <span className="inline-flex min-h-9 items-center border border-rule bg-paper-dark px-3 text-xs font-medium text-charcoal">
+                      #{tag}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {authorBio && (
+            <aside
+              aria-label="About the author"
+              className="mt-12 border-l-2 border-crimson pl-5"
             >
-              {article.category.name}
-            </Link>
-          </div>
-        )}
-
-        <h1 className="text-4xl font-bold tracking-tight mb-4">{article.title}</h1>
-
-        <div className="flex flex-wrap items-center text-gray-500 gap-4">
-          <span className="font-medium text-gray-900">
-            {article.primaryAuthor?.displayName}
-          </span>
-          <span>•</span>
-          <span>Updated: {new Date(article.publishedRevisionCreatedAt).toLocaleDateString()}</span>
-        </div>
-      </header>
-
-      <article className="prose prose-lg max-w-none text-gray-800 whitespace-pre-wrap">
-        {article.body}
-      </article>
-
-      {article.tags && article.tags.length > 0 && (
-        <div className="mt-12 flex flex-wrap gap-2">
-          {article.tags.map((t: any) => (
-            <span
-              key={t.tag.id}
-              className="inline-block rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700"
-            >
-              #{t.tag.name}
-            </span>
-          ))}
-        </div>
-      )}
-    </main>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                About the author
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-charcoal">{authorBio}</p>
+            </aside>
+          )}
+        </article>
+      </main>
+    </PublicSiteShell>
   );
 }

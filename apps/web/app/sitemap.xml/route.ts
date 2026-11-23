@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchPublicApi } from '../../lib/api';
+import { PublicArticlesResponse, PublicCategory } from '../../lib/public-content';
 
 export const revalidate = 3600;
 
@@ -52,24 +53,21 @@ export async function GET() {
   }
 
   // 2. Categories
-  const categories = await fetchPublicApi('/public/categories');
+  const categories = await fetchPublicApi<PublicCategory[]>('/public/categories');
 
-  // Flatten categories
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const flattenCategories = (cats: any[]) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let flat: any[] = [];
+  const flattenCategoryTree = (cats: PublicCategory[]): PublicCategory[] => {
+    let flat: PublicCategory[] = [];
     for (const cat of cats) {
       flat.push(cat);
       if (cat.children && cat.children.length > 0) {
-        flat = flat.concat(flattenCategories(cat.children));
+        flat = flat.concat(flattenCategoryTree(cat.children));
       }
     }
     return flat;
   };
 
   if (Array.isArray(categories)) {
-    const flatCategories = flattenCategories(categories);
+    const flatCategories = flattenCategoryTree(categories);
     for (const cat of flatCategories) {
       if (cat.publishedArticleCount > 0) {
         if (!addUrl(`/category/${cat.slug}`)) {
@@ -92,7 +90,9 @@ export async function GET() {
       break;
     }
 
-    const articlesResponse = await fetchPublicApi(`/public/articles?page=${page}&limit=${limit}`);
+    const articlesResponse = await fetchPublicApi<PublicArticlesResponse>(
+      `/public/articles?page=${page}&limit=${limit}`,
+    );
 
     if (!articlesResponse || !Array.isArray(articlesResponse.data)) {
       break;

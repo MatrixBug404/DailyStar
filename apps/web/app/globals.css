@@ -6,6 +6,15 @@
   :root {
     --font-sans: 'Inter', system-ui, sans-serif;
     --font-serif: Georgia, serif;
+
+    /* Public newsroom editorial tokens (used by components/public). */
+    --color-ink: #1a1714;
+    --color-charcoal: #3a342d;
+    --color-crimson: #9c1c1c;
+    --color-paper: #faf8f3;
+    --color-paper-dark: #f0ebe1;
+    --color-rule: #ddd5c6;
+    --color-muted: #6f665b;
   }
 
   html {
@@ -18,5 +27,12 @@
   *::before,
   *::after {
     box-sizing: border-box;
+  }
+}
+
+@layer components {
+  /* Shared keyboard focus treatment for public-site interactive elements. */
+  .editorial-focus {
+    @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-crimson;
   }
 }

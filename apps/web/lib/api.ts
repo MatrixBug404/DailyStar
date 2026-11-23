@@ -14,7 +14,10 @@ const NEXT_BUILD_PHASE = 'phase-production-build';
  * - Network failure at request/runtime -> rethrows the fetch error. A runtime
  *   API outage must never be converted into a successful empty response.
  */
-export async function fetchPublicApi(path: string, init?: RequestInit) {
+export async function fetchPublicApi<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T | null> {
   const url = `${API_BASE}${path}`;
   let res: Response;
   try {
@@ -42,5 +45,7 @@ export async function fetchPublicApi(path: string, init?: RequestInit) {
     throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
   }
 
-  return res.json();
+  // Single typed boundary: every caller supplies the public DTO it expects.
+  // Runtime contract tests guard the shapes that matter for rendering.
+  return (await res.json()) as T;
 }
